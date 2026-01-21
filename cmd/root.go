@@ -88,5 +88,5 @@ func initConfig() {
 	viper.AutomaticEnv()
 
 	// Config file is optional - don't fail if missing
-	_ = viper.ReadInConfig()
+	viper.ReadInConfig() //nolint:errcheck // config file is optional
 }
