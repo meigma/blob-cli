@@ -35,7 +35,7 @@ their target references.`,
 			return nil
 		}
 
-		if viper.GetString("output") == "json" {
+		if viper.GetString("output") == internalcfg.OutputJSON {
 			return listJSON(cfg)
 		}
 		return listText(cfg)

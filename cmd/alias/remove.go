@@ -50,7 +50,7 @@ Deletes the specified alias. This action cannot be undone.`,
 		if cfg.Quiet {
 			return nil
 		}
-		if viper.GetString("output") == "json" {
+		if viper.GetString("output") == internalcfg.OutputJSON {
 			return removeJSON(name)
 		}
 		return removeText(name)

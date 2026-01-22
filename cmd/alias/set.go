@@ -52,7 +52,7 @@ optionally include a tag.`,
 		if cfg.Quiet {
 			return nil
 		}
-		if viper.GetString("output") == "json" {
+		if viper.GetString("output") == internalcfg.OutputJSON {
 			return setJSON(name, ref, isUpdate)
 		}
 		return setText(name, ref, isUpdate)
