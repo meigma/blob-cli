@@ -3,6 +3,9 @@ package config
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateOutput(t *testing.T) {
@@ -20,11 +23,11 @@ func TestValidateOutput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
 			err := validateOutput(tt.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateOutput(%q) error = %v, wantErr %v", tt.value, err, tt.wantErr)
-			}
-			if err != nil && !errors.Is(err, ErrInvalidConfig) {
-				t.Errorf("error should wrap ErrInvalidConfig: %v", err)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.True(t, errors.Is(err, ErrInvalidConfig), "error should wrap ErrInvalidConfig")
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -44,8 +47,10 @@ func TestValidateCompression(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
 			err := validateCompression(tt.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateCompression(%q) error = %v, wantErr %v", tt.value, err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -73,8 +78,10 @@ func TestValidateCacheSize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
 			err := validateCacheSize(tt.value)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validateCacheSize(%q) error = %v, wantErr %v", tt.value, err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -117,8 +124,10 @@ func TestValidatePolicies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validatePolicies(tt.policies)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validatePolicies() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -156,8 +165,10 @@ func TestValidate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validate(tt.cfg)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("validate() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}

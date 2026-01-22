@@ -2,6 +2,9 @@ package config
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_ResolveAlias(t *testing.T) {
@@ -71,9 +74,7 @@ func TestConfig_ResolveAlias(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &Config{Aliases: tt.aliases}
 			got := cfg.ResolveAlias(tt.input)
-			if got != tt.want {
-				t.Errorf("ResolveAlias(%q) = %q, want %q", tt.input, got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -83,32 +84,24 @@ func TestConfig_SetAlias(t *testing.T) {
 		Aliases: map[string]string{"existing": "ghcr.io/acme/existing"},
 	}
 
-	// Set a new alias
 	newCfg := cfg.SetAlias("new", "ghcr.io/acme/new")
 
 	// Verify new config has the alias
-	if newCfg.Aliases["new"] != "ghcr.io/acme/new" {
-		t.Errorf("new config missing alias: got %v", newCfg.Aliases)
-	}
+	assert.Equal(t, "ghcr.io/acme/new", newCfg.Aliases["new"])
 
 	// Verify original is unchanged (immutability)
-	if _, ok := cfg.Aliases["new"]; ok {
-		t.Error("original config was modified")
-	}
+	_, ok := cfg.Aliases["new"]
+	assert.False(t, ok, "original config should not be modified")
 
 	// Verify existing alias preserved
-	if newCfg.Aliases["existing"] != "ghcr.io/acme/existing" {
-		t.Error("existing alias was lost")
-	}
+	assert.Equal(t, "ghcr.io/acme/existing", newCfg.Aliases["existing"])
 }
 
 func TestConfig_SetAlias_NilMap(t *testing.T) {
 	cfg := &Config{Aliases: nil}
 	newCfg := cfg.SetAlias("foo", "ghcr.io/acme/foo")
 
-	if newCfg.Aliases["foo"] != "ghcr.io/acme/foo" {
-		t.Errorf("alias not set: got %v", newCfg.Aliases)
-	}
+	assert.Equal(t, "ghcr.io/acme/foo", newCfg.Aliases["foo"])
 }
 
 func TestConfig_RemoveAlias(t *testing.T) {
@@ -122,19 +115,14 @@ func TestConfig_RemoveAlias(t *testing.T) {
 	newCfg := cfg.RemoveAlias("foo")
 
 	// Verify alias removed from new config
-	if _, ok := newCfg.Aliases["foo"]; ok {
-		t.Error("alias not removed from new config")
-	}
+	_, ok := newCfg.Aliases["foo"]
+	assert.False(t, ok, "alias should be removed from new config")
 
 	// Verify other alias preserved
-	if newCfg.Aliases["bar"] != "ghcr.io/acme/bar" {
-		t.Error("other alias was lost")
-	}
+	assert.Equal(t, "ghcr.io/acme/bar", newCfg.Aliases["bar"])
 
 	// Verify original unchanged
-	if cfg.Aliases["foo"] != "ghcr.io/acme/foo" {
-		t.Error("original config was modified")
-	}
+	assert.Equal(t, "ghcr.io/acme/foo", cfg.Aliases["foo"])
 }
 
 func TestConfig_RemoveAlias_NonExistent(t *testing.T) {
@@ -145,9 +133,7 @@ func TestConfig_RemoveAlias_NonExistent(t *testing.T) {
 	newCfg := cfg.RemoveAlias("nonexistent")
 
 	// Should not panic and should preserve existing aliases
-	if newCfg.Aliases["foo"] != "ghcr.io/acme/foo" {
-		t.Error("existing alias was lost")
-	}
+	assert.Equal(t, "ghcr.io/acme/foo", newCfg.Aliases["foo"])
 }
 
 func TestParseRef(t *testing.T) {
@@ -170,15 +156,9 @@ func TestParseRef(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
 			base, tag, hasTag := parseRef(tt.input)
-			if base != tt.wantBase {
-				t.Errorf("parseRef(%q) base = %q, want %q", tt.input, base, tt.wantBase)
-			}
-			if tag != tt.wantTag {
-				t.Errorf("parseRef(%q) tag = %q, want %q", tt.input, tag, tt.wantTag)
-			}
-			if hasTag != tt.wantHasTagOrD {
-				t.Errorf("parseRef(%q) hasTag = %v, want %v", tt.input, hasTag, tt.wantHasTagOrD)
-			}
+			require.Equal(t, tt.wantBase, base, "base mismatch")
+			require.Equal(t, tt.wantTag, tag, "tag mismatch")
+			require.Equal(t, tt.wantHasTagOrD, hasTag, "hasTag mismatch")
 		})
 	}
 }

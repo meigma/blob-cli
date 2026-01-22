@@ -2,6 +2,9 @@ package config
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_GetPoliciesForRef(t *testing.T) {
@@ -57,9 +60,7 @@ func TestConfig_GetPoliciesForRef(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			policies := cfg.GetPoliciesForRef(tt.ref)
-			if len(policies) != tt.wantCount {
-				t.Errorf("GetPoliciesForRef(%q) returned %d policies, want %d", tt.ref, len(policies), tt.wantCount)
-			}
+			assert.Len(t, policies, tt.wantCount)
 		})
 	}
 }
@@ -67,9 +68,7 @@ func TestConfig_GetPoliciesForRef(t *testing.T) {
 func TestConfig_GetPoliciesForRef_EmptyPolicies(t *testing.T) {
 	cfg := &Config{Policies: nil}
 	policies := cfg.GetPoliciesForRef("ghcr.io/acme/app:v1")
-	if policies != nil {
-		t.Errorf("expected nil, got %v", policies)
-	}
+	assert.Nil(t, policies)
 }
 
 func TestConfig_MatchedPolicyRules(t *testing.T) {
@@ -88,17 +87,9 @@ func TestConfig_MatchedPolicyRules(t *testing.T) {
 
 	matched := cfg.MatchedPolicyRules("ghcr.io/acme/app:v1")
 
-	if len(matched) != 1 {
-		t.Fatalf("expected 1 match, got %d", len(matched))
-	}
-
-	if matched[0].Pattern != `ghcr\.io/acme/.*` {
-		t.Errorf("pattern = %q, want %q", matched[0].Pattern, `ghcr\.io/acme/.*`)
-	}
-
-	if matched[0].Policy.Signature == nil {
-		t.Error("policy signature is nil")
-	}
+	require.Len(t, matched, 1)
+	assert.Equal(t, `ghcr\.io/acme/.*`, matched[0].Pattern)
+	assert.NotNil(t, matched[0].Policy.Signature)
 }
 
 func TestConfig_GetPoliciesForRef_InvalidPattern(t *testing.T) {
@@ -112,7 +103,5 @@ func TestConfig_GetPoliciesForRef_InvalidPattern(t *testing.T) {
 
 	// Should not panic and should return the valid policy
 	policies := cfg.GetPoliciesForRef("something valid here")
-	if len(policies) != 1 {
-		t.Errorf("expected 1 policy (valid one), got %d", len(policies))
-	}
+	assert.Len(t, policies, 1)
 }
