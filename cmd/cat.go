@@ -1,7 +1,16 @@
 package cmd
 
 import (
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+
+	"github.com/meigma/blob"
 	"github.com/spf13/cobra"
+
+	internalcfg "github.com/meigma/blob-cli/internal/config"
 )
 
 var catCmd = &cobra.Command{
@@ -16,7 +25,84 @@ downloading the entire archive.`,
   blob cat ghcr.io/acme/configs:v1.0.0 config.json | jq .
   blob cat ghcr.io/acme/configs:v1.0.0 header.txt body.txt footer.txt > combined.txt`,
 	Args: cobra.MinimumNArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: runCat,
+}
+
+func runCat(cmd *cobra.Command, args []string) error {
+	// 1. Get config from context
+	cfg := internalcfg.FromContext(cmd.Context())
+	if cfg == nil {
+		return errors.New("configuration not loaded")
+	}
+
+	// 2. Parse arguments
+	inputRef := args[0]
+	filePaths := args[1:]
+
+	// 3. Resolve alias
+	resolvedRef := cfg.ResolveAlias(inputRef)
+
+	// 4. Create client (lazy - only downloads manifest + index)
+	client, err := blob.NewClient(blob.WithDockerConfig())
+	if err != nil {
+		return fmt.Errorf("creating client: %w", err)
+	}
+
+	// 5. Pull archive (lazy - does NOT download data blob)
+	ctx := cmd.Context()
+	blobArchive, err := client.Pull(ctx, resolvedRef)
+	if err != nil {
+		return fmt.Errorf("accessing archive %s: %w", resolvedRef, err)
+	}
+
+	// 6. Normalize and validate all files exist and are not directories before outputting anything
+	normalizedPaths := make([]string, len(filePaths))
+	for i, filePath := range filePaths {
+		// Normalize path - strip leading slash for fs.FS compatibility
+		normalized := strings.TrimPrefix(filePath, "/")
+		if normalized == "" {
+			return fmt.Errorf("invalid path: %s", filePath)
+		}
+		normalizedPaths[i] = normalized
+
+		info, err := blobArchive.Stat(normalized)
+		if err != nil {
+			return fmt.Errorf("file not found: %s", filePath)
+		}
+		if info.IsDir() {
+			return fmt.Errorf("cannot cat directory: %s", filePath)
+		}
+	}
+
+	// 7. Check quiet mode - suppress output only after validation
+	if cfg.Quiet {
 		return nil
-	},
+	}
+
+	// 8. Stream each file to stdout
+	for _, normalizedPath := range normalizedPaths {
+		if err := catFile(blobArchive, normalizedPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// catFile streams a single file from the archive to stdout.
+// Each file read triggers an HTTP range request for just that file's bytes.
+func catFile(archive *blob.Archive, filePath string) error {
+	// Open the file (triggers HTTP range request)
+	f, err := archive.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("opening %s: %w", filePath, err)
+	}
+	defer f.Close()
+
+	// Stream to stdout
+	if _, err := io.Copy(os.Stdout, f); err != nil {
+		return fmt.Errorf("reading %s: %w", filePath, err)
+	}
+
+	return nil
 }
