@@ -3,10 +3,11 @@ package config
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoad(t *testing.T) {
@@ -14,23 +15,13 @@ func TestLoad(t *testing.T) {
 	SetDefaults(v)
 
 	cfg, err := Load(v)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	// Check defaults were applied
-	if cfg.Output != "text" {
-		t.Errorf("Output = %q, want %q", cfg.Output, "text")
-	}
-	if cfg.Compression != "zstd" {
-		t.Errorf("Compression = %q, want %q", cfg.Compression, "zstd")
-	}
-	if !cfg.Cache.Enabled {
-		t.Error("Cache.Enabled = false, want true")
-	}
-	if cfg.Cache.MaxSize != "5GB" {
-		t.Errorf("Cache.MaxSize = %q, want %q", cfg.Cache.MaxSize, "5GB")
-	}
+	assert.Equal(t, "text", cfg.Output)
+	assert.Equal(t, "zstd", cfg.Compression)
+	assert.True(t, cfg.Cache.Enabled)
+	assert.Equal(t, "5GB", cfg.Cache.MaxSize)
 }
 
 func TestLoad_WithViperOverrides(t *testing.T) {
@@ -42,16 +33,10 @@ func TestLoad_WithViperOverrides(t *testing.T) {
 	v.Set("compression", "none")
 
 	cfg, err := Load(v)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
+	require.NoError(t, err)
 
-	if cfg.Output != "json" {
-		t.Errorf("Output = %q, want %q", cfg.Output, "json")
-	}
-	if cfg.Compression != "none" {
-		t.Errorf("Compression = %q, want %q", cfg.Compression, "none")
-	}
+	assert.Equal(t, "json", cfg.Output)
+	assert.Equal(t, "none", cfg.Compression)
 }
 
 func TestLoad_ValidationError(t *testing.T) {
@@ -60,9 +45,7 @@ func TestLoad_ValidationError(t *testing.T) {
 	v.Set("compression", "zstd")
 
 	_, err := Load(v)
-	if err == nil {
-		t.Fatal("expected validation error, got nil")
-	}
+	require.Error(t, err)
 }
 
 func TestLoad_AliasesInitialized(t *testing.T) {
@@ -70,14 +53,10 @@ func TestLoad_AliasesInitialized(t *testing.T) {
 	SetDefaults(v)
 
 	cfg, err := Load(v)
-	if err != nil {
-		t.Fatalf("Load() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	// Aliases map should be initialized even if empty
-	if cfg.Aliases == nil {
-		t.Error("Aliases map is nil, should be initialized")
-	}
+	assert.NotNil(t, cfg.Aliases)
 }
 
 func TestSave(t *testing.T) {
@@ -97,26 +76,18 @@ func TestSave(t *testing.T) {
 	}
 
 	err := Save(cfg, path)
-	if err != nil {
-		t.Fatalf("Save() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	// Verify file was created
-	if _, statErr := os.Stat(path); os.IsNotExist(statErr) {
-		t.Fatal("config file was not created")
-	}
+	_, err = os.Stat(path)
+	require.NoError(t, err, "config file should exist")
 
 	// Verify content can be read back
 	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading config file: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Check that it contains expected content
-	content := string(data)
-	if content == "" {
-		t.Error("config file is empty")
-	}
+	assert.NotEmpty(t, string(data))
 }
 
 func TestSaveDefault(t *testing.T) {
@@ -124,13 +95,10 @@ func TestSaveDefault(t *testing.T) {
 	path := filepath.Join(dir, "config.yaml")
 
 	err := SaveDefault(path)
-	if err != nil {
-		t.Fatalf("SaveDefault() error = %v", err)
-	}
+	require.NoError(t, err)
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		t.Fatal("config file was not created")
-	}
+	_, err = os.Stat(path)
+	require.NoError(t, err, "config file should exist")
 }
 
 func TestSaveDefaultWithComments(t *testing.T) {
@@ -138,48 +106,28 @@ func TestSaveDefaultWithComments(t *testing.T) {
 	path := filepath.Join(dir, "config.yaml")
 
 	err := SaveDefaultWithComments(path)
-	if err != nil {
-		t.Fatalf("SaveDefaultWithComments() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading config file: %v", err)
-	}
+	require.NoError(t, err)
 
 	content := string(data)
 
 	// Check for comments
-	if content[0] != '#' {
-		t.Error("config file should start with a comment")
-	}
+	assert.Equal(t, '#', rune(content[0]), "config file should start with a comment")
 
 	// Check for key configuration values
 	checks := []string{"output:", "compression:", "cache:", "aliases:", "policies:"}
 	for _, check := range checks {
-		if !contains(content, check) {
-			t.Errorf("config file missing %q", check)
-		}
+		assert.Contains(t, content, check)
 	}
-}
-
-func contains(s, substr string) bool {
-	return strings.Contains(s, substr)
 }
 
 func TestDefault(t *testing.T) {
 	cfg := Default()
 
-	if cfg.Output != "text" {
-		t.Errorf("Output = %q, want %q", cfg.Output, "text")
-	}
-	if cfg.Compression != "zstd" {
-		t.Errorf("Compression = %q, want %q", cfg.Compression, "zstd")
-	}
-	if !cfg.Cache.Enabled {
-		t.Error("Cache.Enabled = false, want true")
-	}
-	if cfg.Aliases == nil {
-		t.Error("Aliases is nil")
-	}
+	assert.Equal(t, "text", cfg.Output)
+	assert.Equal(t, "zstd", cfg.Compression)
+	assert.True(t, cfg.Cache.Enabled)
+	assert.NotNil(t, cfg.Aliases)
 }

@@ -3,6 +3,9 @@ package config
 import (
 	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestWithConfig_FromContext(t *testing.T) {
@@ -14,20 +17,14 @@ func TestWithConfig_FromContext(t *testing.T) {
 
 	// Retrieve it
 	got := FromContext(ctx)
-	if got == nil {
-		t.Fatal("FromContext returned nil")
-	}
-	if got.Output != "json" {
-		t.Errorf("Output = %q, want %q", got.Output, "json")
-	}
+	require.NotNil(t, got)
+	assert.Equal(t, "json", got.Output)
 }
 
 func TestFromContext_NoConfig(t *testing.T) {
 	ctx := context.Background()
 	got := FromContext(ctx)
-	if got != nil {
-		t.Errorf("expected nil, got %v", got)
-	}
+	assert.Nil(t, got)
 }
 
 func TestMustFromContext_Success(t *testing.T) {
@@ -35,21 +32,13 @@ func TestMustFromContext_Success(t *testing.T) {
 	ctx := WithConfig(context.Background(), cfg)
 
 	got := MustFromContext(ctx)
-	if got == nil {
-		t.Fatal("MustFromContext returned nil")
-	}
-	if got.Output != "text" {
-		t.Errorf("Output = %q, want %q", got.Output, "text")
-	}
+	require.NotNil(t, got)
+	assert.Equal(t, "text", got.Output)
 }
 
 func TestMustFromContext_Panics(t *testing.T) {
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("expected panic, got none")
-		}
-	}()
-
 	ctx := context.Background()
-	MustFromContext(ctx) // should panic
+	assert.Panics(t, func() {
+		MustFromContext(ctx)
+	})
 }

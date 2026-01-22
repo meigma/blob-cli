@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/spf13/viper"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfigDir(t *testing.T) {
@@ -18,26 +20,17 @@ func TestConfigDir(t *testing.T) {
 	t.Run("with XDG_CONFIG_HOME set", func(t *testing.T) {
 		os.Setenv("XDG_CONFIG_HOME", "/custom/config")
 		dir, err := ConfigDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := "/custom/config/blob"
-		if dir != want {
-			t.Errorf("ConfigDir() = %q, want %q", dir, want)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "/custom/config/blob", dir)
 	})
 
 	t.Run("without XDG_CONFIG_HOME", func(t *testing.T) {
 		os.Unsetenv("XDG_CONFIG_HOME")
 		dir, err := ConfigDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 		home, _ := os.UserHomeDir()
 		want := filepath.Join(home, ".config", "blob")
-		if dir != want {
-			t.Errorf("ConfigDir() = %q, want %q", dir, want)
-		}
+		assert.Equal(t, want, dir)
 	})
 }
 
@@ -49,13 +42,8 @@ func TestConfigPath(t *testing.T) {
 
 	os.Setenv("XDG_CONFIG_HOME", "/custom/config")
 	path, err := ConfigPath()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	want := "/custom/config/blob/config.yaml"
-	if path != want {
-		t.Errorf("ConfigPath() = %q, want %q", path, want)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, "/custom/config/blob/config.yaml", path)
 }
 
 func TestCacheDir(t *testing.T) {
@@ -67,26 +55,17 @@ func TestCacheDir(t *testing.T) {
 	t.Run("with XDG_CACHE_HOME set", func(t *testing.T) {
 		os.Setenv("XDG_CACHE_HOME", "/custom/cache")
 		dir, err := CacheDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := "/custom/cache/blob"
-		if dir != want {
-			t.Errorf("CacheDir() = %q, want %q", dir, want)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "/custom/cache/blob", dir)
 	})
 
 	t.Run("without XDG_CACHE_HOME", func(t *testing.T) {
 		os.Unsetenv("XDG_CACHE_HOME")
 		dir, err := CacheDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 		home, _ := os.UserHomeDir()
 		want := filepath.Join(home, ".cache", "blob")
-		if dir != want {
-			t.Errorf("CacheDir() = %q, want %q", dir, want)
-		}
+		assert.Equal(t, want, dir)
 	})
 }
 
@@ -99,26 +78,17 @@ func TestDataDir(t *testing.T) {
 	t.Run("with XDG_DATA_HOME set", func(t *testing.T) {
 		os.Setenv("XDG_DATA_HOME", "/custom/data")
 		dir, err := DataDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := "/custom/data/blob"
-		if dir != want {
-			t.Errorf("DataDir() = %q, want %q", dir, want)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "/custom/data/blob", dir)
 	})
 
 	t.Run("without XDG_DATA_HOME", func(t *testing.T) {
 		os.Unsetenv("XDG_DATA_HOME")
 		dir, err := DataDir()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 		home, _ := os.UserHomeDir()
 		want := filepath.Join(home, ".local", "share", "blob")
-		if dir != want {
-			t.Errorf("DataDir() = %q, want %q", dir, want)
-		}
+		assert.Equal(t, want, dir)
 	})
 }
 
@@ -133,25 +103,15 @@ func TestConfigPathUsed(t *testing.T) {
 		viper.Reset()
 		viper.Set("internal.config_path", "/custom/path/config.yaml")
 		path, err := ConfigPathUsed()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := "/custom/path/config.yaml"
-		if path != want {
-			t.Errorf("ConfigPathUsed() = %q, want %q", path, want)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "/custom/path/config.yaml", path)
 	})
 
 	t.Run("without internal config path (fallback to XDG)", func(t *testing.T) {
 		viper.Reset()
 		os.Setenv("XDG_CONFIG_HOME", "/xdg/config")
 		path, err := ConfigPathUsed()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		want := "/xdg/config/blob/config.yaml"
-		if path != want {
-			t.Errorf("ConfigPathUsed() = %q, want %q", path, want)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "/xdg/config/blob/config.yaml", path)
 	})
 }
