@@ -56,6 +56,7 @@ func init() {
 	rootCmd.PersistentFlags().CountP("verbose", "v", "increase verbosity (can be repeated: -vv, -vvv)")
 	rootCmd.PersistentFlags().BoolP("quiet", "q", false, "suppress non-error output")
 	rootCmd.PersistentFlags().Bool("no-color", false, "disable colored output")
+	rootCmd.PersistentFlags().Bool("plain-http", false, "use plain HTTP instead of HTTPS for registries")
 
 	// Bind flags to Viper
 	// Note: "config" is NOT bound to Viper to avoid BLOB_CONFIG env var affecting
@@ -64,6 +65,7 @@ func init() {
 	viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 	viper.BindPFlag("quiet", rootCmd.PersistentFlags().Lookup("quiet"))
 	viper.BindPFlag("no-color", rootCmd.PersistentFlags().Lookup("no-color"))
+	viper.BindPFlag("plain-http", rootCmd.PersistentFlags().Lookup("plain-http"))
 
 	// Add core commands
 	rootCmd.AddCommand(pushCmd)

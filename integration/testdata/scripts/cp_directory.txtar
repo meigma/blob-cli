@@ -1,0 +1,10 @@
+# Test cp copies directory recursively
+gentag TAG
+exec blob --plain-http push $REGISTRY/cp-dir:$TAG sample-project
+
+mkdir output
+exec blob --plain-http cp $REGISTRY/cp-dir:$TAG:/config/ output/
+
+# Files are copied with directory structure preserved
+exists output/config/app.yaml
+exists output/config/database.json

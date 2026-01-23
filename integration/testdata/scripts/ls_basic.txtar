@@ -1,0 +1,9 @@
+# Test ls lists directory contents
+gentag TAG
+exec blob --plain-http push $REGISTRY/ls:$TAG sample-project
+exec blob --plain-http ls $REGISTRY/ls:$TAG
+
+stdout 'README\.md'
+stdout 'config/'
+stdout 'src/'
+stdout 'docs/'

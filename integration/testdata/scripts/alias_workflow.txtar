@@ -1,0 +1,8 @@
+# Test alias list/set/remove
+exec blob alias set mytest $REGISTRY/alias-test
+exec blob alias list
+stdout 'mytest'
+
+exec blob alias remove mytest
+exec blob alias list
+! stdout 'mytest'

@@ -1,0 +1,7 @@
+# Test ls with long format shows permissions and sizes
+gentag TAG
+exec blob --plain-http push $REGISTRY/ls-long:$TAG sample-project
+exec blob --plain-http ls -lh $REGISTRY/ls-long:$TAG
+
+stdout '-rw'
+stdout 'README\.md'

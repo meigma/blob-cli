@@ -1,0 +1,8 @@
+# Test ls with subdirectory path
+gentag TAG
+exec blob --plain-http push $REGISTRY/ls-subdir:$TAG sample-project
+exec blob --plain-http ls $REGISTRY/ls-subdir:$TAG /config
+
+stdout 'app\.yaml'
+stdout 'database\.json'
+! stdout 'README\.md'

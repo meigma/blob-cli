@@ -1,0 +1,11 @@
+# Test error cases
+! exec blob push
+stderr 'accepts 2 arg'
+
+! exec blob --plain-http cat $REGISTRY/nonexistent:v1 /file.txt
+stderr 'not found'
+
+gentag TAG
+exec blob --plain-http push $REGISTRY/err:$TAG sample-project
+! exec blob --plain-http cat $REGISTRY/err:$TAG /nonexistent.txt
+stderr 'not found'

@@ -1,0 +1,5 @@
+# Test basic push command
+gentag TAG
+exec blob --plain-http push $REGISTRY/test:$TAG sample-project
+stdout 'Pushed'
+! stderr .

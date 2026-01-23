@@ -78,7 +78,7 @@ func runInspect(cmd *cobra.Command, args []string) error {
 	inputRef := args[0]
 	resolvedRef := cfg.ResolveAlias(inputRef)
 
-	result, err := archive.Inspect(cmd.Context(), resolvedRef)
+	result, err := archive.Inspect(cmd.Context(), resolvedRef, clientOpts(cfg)...)
 	if err != nil {
 		return err
 	}

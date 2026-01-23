@@ -30,6 +30,11 @@ test:
     @echo "Running tests..."
     go test -race -cover ./...
 
+# Run integration tests (requires Docker)
+test-integration:
+    @echo "Running integration tests..."
+    go test -v -tags=integration ./integration/...
+
 # Build the binary
 build:
     @echo "Building..."

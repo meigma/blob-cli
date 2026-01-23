@@ -1,0 +1,7 @@
+# Test push with annotations
+gentag TAG
+exec blob --plain-http push --annotation version=1.0.0 --annotation author=test $REGISTRY/annotated:$TAG sample-project
+stdout 'Pushed'
+exec blob --plain-http inspect --output json $REGISTRY/annotated:$TAG
+stdout '"version".*"1.0.0"'
+stdout '"author".*"test"'

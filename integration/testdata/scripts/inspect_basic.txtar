@@ -1,0 +1,10 @@
+# Test inspect shows metadata
+gentag TAG
+exec blob --plain-http push $REGISTRY/inspect:$TAG sample-project
+exec blob --plain-http inspect $REGISTRY/inspect:$TAG
+
+stdout 'Reference:'
+stdout 'Digest:'
+stdout 'Files:'
+stdout 'Size:'
+stdout 'Compression:'

@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/meigma/blob"
 	"github.com/meigma/blob/policy/sigstore"
 	"github.com/meigma/blob/registry/oras"
 	"github.com/spf13/cobra"
@@ -90,7 +89,7 @@ func runSign(cmd *cobra.Command, args []string) error {
 	}
 
 	// Normal mode: sign and upload
-	client, err := blob.NewClient(blob.WithDockerConfig())
+	client, err := newClient(cfg)
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}

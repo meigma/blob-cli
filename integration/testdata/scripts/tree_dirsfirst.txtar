@@ -1,0 +1,8 @@
+# Test tree with directories first
+gentag TAG
+exec blob --plain-http push $REGISTRY/tree-dirs:$TAG sample-project
+exec blob --plain-http tree --dirsfirst $REGISTRY/tree-dirs:$TAG
+
+stdout 'config'
+stdout 'src'
+stdout 'docs'

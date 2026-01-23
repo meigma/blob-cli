@@ -1,0 +1,14 @@
+# Test tree shows full hierarchy
+gentag TAG
+exec blob --plain-http push $REGISTRY/tree:$TAG sample-project
+exec blob --plain-http tree $REGISTRY/tree:$TAG
+
+stdout 'config'
+stdout 'src'
+stdout 'docs'
+stdout 'utils'
+stdout 'api'
+stdout 'helpers\.go'
+stdout 'reference\.md'
+stdout 'directories'
+stdout 'files'

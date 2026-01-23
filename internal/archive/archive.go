@@ -31,8 +31,10 @@ type DirEntry struct {
 }
 
 // Inspect fetches archive metadata from a registry without downloading file data.
-func Inspect(ctx context.Context, ref string) (*blob.InspectResult, error) {
-	client, err := blob.NewClient(blob.WithDockerConfig())
+// Additional client options can be passed to customize the client behavior.
+func Inspect(ctx context.Context, ref string, opts ...blob.Option) (*blob.InspectResult, error) {
+	clientOpts := append([]blob.Option{blob.WithDockerConfig()}, opts...)
+	client, err := blob.NewClient(clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating client: %w", err)
 	}

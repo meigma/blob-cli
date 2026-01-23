@@ -1,0 +1,13 @@
+# Test push with compression options
+# Note: Small test files may show as "none" even with zstd compression
+# because the skip-compressed heuristic prevents compressing very small files
+gentag TAG1
+gentag TAG2
+
+exec blob --plain-http push $REGISTRY/zstd:$TAG1 sample-project
+exec blob --plain-http inspect $REGISTRY/zstd:$TAG1
+stdout 'Compression:'
+
+exec blob --plain-http push --compression none $REGISTRY/none:$TAG2 sample-project
+exec blob --plain-http inspect $REGISTRY/none:$TAG2
+stdout 'Compression:.*none'

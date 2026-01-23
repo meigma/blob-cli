@@ -1,0 +1,6 @@
+# Test config subcommands
+exec blob config path
+stdout 'config\.yaml'
+
+exec blob config show
+stdout 'output:'
