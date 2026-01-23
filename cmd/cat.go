@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
 
 	"github.com/meigma/blob"
 	"github.com/spf13/cobra"
@@ -55,23 +54,21 @@ func runCat(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("accessing archive %s: %w", resolvedRef, err)
 	}
 
-	// 6. Normalize and validate all files exist and are not directories before outputting anything
-	normalizedPaths := make([]string, len(filePaths))
-	for i, filePath := range filePaths {
-		// Normalize path - strip leading slash for fs.FS compatibility
-		normalized := strings.TrimPrefix(filePath, "/")
-		if normalized == "" {
-			return fmt.Errorf("invalid path: %s", filePath)
+	// 6. Validate all files exist and are not directories before outputting anything
+	normalizedPaths, err := blobArchive.ValidateFiles(filePaths...)
+	if err != nil {
+		var ve *blob.ValidationError
+		if errors.As(err, &ve) {
+			switch ve.Reason {
+			case "is a directory":
+				return fmt.Errorf("cannot cat directory: %s", ve.Path)
+			case "not found":
+				return fmt.Errorf("file not found: %s", ve.Path)
+			default:
+				return fmt.Errorf("invalid path: %s: %s", ve.Path, ve.Reason)
+			}
 		}
-		normalizedPaths[i] = normalized
-
-		info, err := blobArchive.Stat(normalized)
-		if err != nil {
-			return fmt.Errorf("file not found: %s", filePath)
-		}
-		if info.IsDir() {
-			return fmt.Errorf("cannot cat directory: %s", filePath)
-		}
+		return fmt.Errorf("validating files: %w", err)
 	}
 
 	// 7. Check quiet mode - suppress output only after validation
