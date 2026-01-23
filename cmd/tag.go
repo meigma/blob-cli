@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/meigma/blob"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -49,7 +48,7 @@ func runTag(cmd *cobra.Command, args []string) error {
 	resolvedSrcRef := cfg.ResolveAlias(srcRef)
 	resolvedDstRef := cfg.ResolveAlias(dstRef)
 
-	client, err := blob.NewClient(blob.WithDockerConfig())
+	client, err := newClient(cfg)
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}

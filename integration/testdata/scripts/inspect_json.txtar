@@ -1,0 +1,9 @@
+# Test inspect JSON output
+gentag TAG
+exec blob --plain-http push $REGISTRY/inspect-json:$TAG sample-project
+exec blob --plain-http inspect --output json $REGISTRY/inspect-json:$TAG
+
+stdout '"ref":'
+stdout '"digest":'
+stdout '"files":'
+stdout '"size":'

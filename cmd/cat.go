@@ -42,7 +42,7 @@ func runCat(cmd *cobra.Command, args []string) error {
 	resolvedRef := cfg.ResolveAlias(inputRef)
 
 	// 4. Create client (lazy - only downloads manifest + index)
-	client, err := blob.NewClient(blob.WithDockerConfig())
+	client, err := newClient(cfg)
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}

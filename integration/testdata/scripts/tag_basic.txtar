@@ -1,0 +1,10 @@
+# Test tag creates new reference (same repo, different tag)
+gentag TAG
+exec blob --plain-http push $REGISTRY/tag-test:$TAG sample-project
+exec blob --plain-http tag $REGISTRY/tag-test:$TAG $REGISTRY/tag-test:latest
+
+stdout 'Tagged'
+stdout 'Digest:'
+
+exec blob --plain-http inspect $REGISTRY/tag-test:latest
+stdout 'Digest:'

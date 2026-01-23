@@ -1,0 +1,11 @@
+# Test JSON output for multiple commands
+gentag TAG
+exec blob --plain-http push $REGISTRY/json:$TAG sample-project
+
+exec blob --plain-http ls --output json $REGISTRY/json:$TAG
+stdout '"entries":'
+
+exec blob --plain-http tree --output json $REGISTRY/json:$TAG
+stdout '"root":'
+stdout '"directory_count":'
+stdout '"file_count":'

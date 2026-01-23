@@ -74,7 +74,7 @@ func runPush(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	client, err := blob.NewClient(blob.WithDockerConfig())
+	client, err := newClient(cfg)
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}

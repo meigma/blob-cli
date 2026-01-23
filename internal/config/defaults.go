@@ -21,6 +21,7 @@ func Default() *Config {
 		Verbose:     0,
 		Quiet:       false,
 		NoColor:     false,
+		PlainHTTP:   false,
 		Compression: CompressionZstd,
 		Cache: CacheConfig{
 			Enabled: true,
@@ -38,6 +39,7 @@ func SetDefaults(v *viper.Viper) {
 	v.SetDefault("verbose", 0)
 	v.SetDefault("quiet", false)
 	v.SetDefault("no-color", false)
+	v.SetDefault("plain-http", false)
 	v.SetDefault("compression", CompressionZstd)
 	v.SetDefault("cache.enabled", true)
 	v.SetDefault("cache.max_size", "5GB")

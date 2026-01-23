@@ -80,7 +80,7 @@ func runLs(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result, err := archive.Inspect(cmd.Context(), ref)
+	result, err := archive.Inspect(cmd.Context(), ref, clientOpts(cfg)...)
 	if err != nil {
 		return err
 	}

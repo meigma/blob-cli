@@ -1,0 +1,7 @@
+# Test cat with multiple files concatenated
+gentag TAG
+exec blob --plain-http push $REGISTRY/cat-multi:$TAG sample-project
+exec blob --plain-http cat $REGISTRY/cat-multi:$TAG /README.md /config/app.yaml
+
+stdout 'Sample Project'
+stdout 'name: sample-app'

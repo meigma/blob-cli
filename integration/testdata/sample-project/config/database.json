@@ -1,0 +1,12 @@
+{
+  "connection": {
+    "host": "db.example.com",
+    "port": 5432,
+    "database": "myapp",
+    "ssl": true
+  },
+  "pool": {
+    "min": 5,
+    "max": 20
+  }
+}

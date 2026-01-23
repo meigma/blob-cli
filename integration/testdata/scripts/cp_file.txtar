@@ -1,0 +1,7 @@
+# Test cp copies single file
+gentag TAG
+exec blob --plain-http push $REGISTRY/cp:$TAG sample-project
+exec blob --plain-http cp $REGISTRY/cp:$TAG:/config/app.yaml ./copied.yaml
+
+exists copied.yaml
+cmp copied.yaml sample-project/config/app.yaml

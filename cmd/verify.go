@@ -108,7 +108,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	// 7. Handle no-policies case
 	if len(policies) == 0 {
 		// No policies - vacuous success with warning
-		inspectResult, inspectErr := archive.Inspect(cmd.Context(), resolvedRef)
+		inspectResult, inspectErr := archive.Inspect(cmd.Context(), resolvedRef, clientOpts(cfg)...)
 		if inspectErr != nil {
 			return fmt.Errorf("inspecting archive: %w", inspectErr)
 		}
@@ -129,11 +129,11 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	}
 
 	// 8. Create client with policies for verification
-	clientOpts := []blob.Option{blob.WithDockerConfig()}
+	policyOpts := make([]blob.Option, 0, len(policies))
 	for _, p := range policies {
-		clientOpts = append(clientOpts, blob.WithPolicy(p))
+		policyOpts = append(policyOpts, blob.WithPolicy(p))
 	}
-	client, err := blob.NewClient(clientOpts...)
+	client, err := newClient(cfg, policyOpts...)
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}

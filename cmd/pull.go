@@ -95,11 +95,11 @@ func runPull(cmd *cobra.Command, args []string) error {
 	}
 
 	// 6. Create client with policies
-	clientOpts := []blob.Option{blob.WithDockerConfig()}
+	policyOpts := make([]blob.Option, 0, len(policies))
 	for _, p := range policies {
-		clientOpts = append(clientOpts, blob.WithPolicy(p))
+		policyOpts = append(policyOpts, blob.WithPolicy(p))
 	}
-	client, err := blob.NewClient(clientOpts...)
+	client, err := newClient(cfg, policyOpts...)
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}

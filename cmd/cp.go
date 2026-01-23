@@ -107,7 +107,7 @@ func runCp(cmd *cobra.Command, args []string) error {
 	resolvedSources := make([]cpResolvedSource, 0, len(sources))
 
 	for _, src := range sources {
-		rsrc, resolveErr := resolveSource(ctx, src, archiveCache)
+		rsrc, resolveErr := resolveSource(ctx, cfg, src, archiveCache)
 		if resolveErr != nil {
 			return resolveErr
 		}
@@ -148,11 +148,11 @@ func runCp(cmd *cobra.Command, args []string) error {
 }
 
 // resolveSource pulls the archive (if not cached) and detects if the source is a file or directory.
-func resolveSource(ctx context.Context, src cpSource, cache map[string]*blob.Archive) (cpResolvedSource, error) {
+func resolveSource(ctx context.Context, cfg *internalcfg.Config, src cpSource, cache map[string]*blob.Archive) (cpResolvedSource, error) {
 	// Get or create archive for this ref
 	blobArchive, ok := cache[src.ref]
 	if !ok {
-		client, clientErr := blob.NewClient(blob.WithDockerConfig())
+		client, clientErr := newClient(cfg)
 		if clientErr != nil {
 			return cpResolvedSource{}, fmt.Errorf("creating client: %w", clientErr)
 		}

@@ -14,6 +14,9 @@ type Config struct {
 	// NoColor disables colored output.
 	NoColor bool `mapstructure:"no-color" json:"no_color"`
 
+	// PlainHTTP enables plain HTTP (no TLS) for registries.
+	PlainHTTP bool `mapstructure:"plain-http" json:"plain_http"`
+
 	// Compression type for push: "none" or "zstd".
 	Compression string `mapstructure:"compression" json:"compression"`
 

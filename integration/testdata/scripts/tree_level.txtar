@@ -1,0 +1,11 @@
+# Test tree with depth limit
+gentag TAG
+exec blob --plain-http push $REGISTRY/tree-level:$TAG sample-project
+exec blob --plain-http tree -L 1 $REGISTRY/tree-level:$TAG
+
+stdout 'config'
+stdout 'src'
+stdout 'docs'
+stdout 'README\.md'
+! stdout 'helpers\.go'
+! stdout 'reference\.md'

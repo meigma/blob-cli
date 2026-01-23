@@ -1,0 +1,4 @@
+# Test cache subcommands
+# Note: cache commands currently output empty - just verify they run successfully
+exec blob cache path
+exec blob cache status

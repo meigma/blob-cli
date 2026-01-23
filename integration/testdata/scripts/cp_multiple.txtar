@@ -1,0 +1,10 @@
+# Test cp copies multiple files
+gentag TAG
+exec blob --plain-http push $REGISTRY/cp-multi:$TAG sample-project
+
+mkdir output
+exec blob --plain-http cp $REGISTRY/cp-multi:$TAG:/config/app.yaml $REGISTRY/cp-multi:$TAG:/config/database.json output/
+
+# Files are copied with directory structure preserved
+exists output/config/app.yaml
+exists output/config/database.json

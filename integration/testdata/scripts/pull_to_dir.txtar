@@ -1,0 +1,11 @@
+# Test pull to specific directory creates correct structure
+gentag TAG
+exec blob --plain-http push $REGISTRY/pull-dir:$TAG sample-project
+
+mkdir custom-output
+exec blob --plain-http pull $REGISTRY/pull-dir:$TAG custom-output
+stdout 'Pulled'
+
+exists custom-output/README.md
+exists custom-output/config/app.yaml
+exists custom-output/src/main.go

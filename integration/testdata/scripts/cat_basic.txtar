@@ -1,0 +1,8 @@
+# Test cat outputs file contents
+gentag TAG
+exec blob --plain-http push $REGISTRY/cat:$TAG sample-project
+exec blob --plain-http cat $REGISTRY/cat:$TAG /config/app.yaml
+
+stdout 'name: sample-app'
+stdout 'version: 1\.0\.0'
+stdout 'environment: production'
