@@ -126,7 +126,8 @@ func runPull(cmd *cobra.Command, args []string) error {
 		blob.CopyWithPreserveMode(true),
 		blob.CopyWithPreserveTimes(true),
 	}
-	if err := blobArchive.CopyDir(destDir, ".", copyOpts...); err != nil {
+	copyStats, err := blobArchive.CopyDir(destDir, ".", copyOpts...)
+	if err != nil {
 		return fmt.Errorf("extracting files: %w", err)
 	}
 
@@ -134,7 +135,8 @@ func runPull(cmd *cobra.Command, args []string) error {
 	result := pullResult{
 		Ref:         inputRef,
 		Destination: destDir,
-		FileCount:   blobArchive.Len(),
+		FileCount:   copyStats.FileCount,
+		TotalSize:   copyStats.TotalBytes,
 		Verified:    len(policies) > 0,
 	}
 
@@ -142,10 +144,6 @@ func runPull(cmd *cobra.Command, args []string) error {
 		result.ResolvedRef = resolvedRef
 	}
 
-	// Compute total size
-	for entry := range blobArchive.Entries() {
-		result.TotalSize += entry.OriginalSize()
-	}
 	result.TotalSizeHuman = archive.FormatSize(result.TotalSize)
 
 	if len(policies) > 0 {

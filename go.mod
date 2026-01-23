@@ -3,7 +3,7 @@ module github.com/meigma/blob-cli
 go 1.25.5
 
 require (
-	github.com/meigma/blob v1.0.0
+	github.com/meigma/blob v1.1.0
 	github.com/meigma/blob/policy/opa v0.0.0-20260121212824-972ce5f91c94
 	github.com/meigma/blob/policy/sigstore v0.0.0-20260121212824-972ce5f91c94
 	github.com/meigma/blob/policy/slsa v0.0.0-20260121212824-972ce5f91c94
