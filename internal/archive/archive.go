@@ -197,13 +197,14 @@ func SortDirsFirst(entries []*DirEntry) {
 // - Removes leading "/" and trailing "/"
 // - "foo/" becomes "foo"
 // - "/foo/bar/" becomes "foo/bar"
+// - "foo/./bar" becomes "foo/bar" (via path.Clean)
 func normalizePath(p string) string {
 	// Handle special cases
 	if p == "" || p == "." || p == "/" {
 		return ""
 	}
 
-	// Clean the path and remove leading/trailing slashes
+	// Clean the path to handle dot segments (./  ../)
 	p = path.Clean(p)
 	p = strings.TrimPrefix(p, "/")
 	p = strings.TrimSuffix(p, "/")

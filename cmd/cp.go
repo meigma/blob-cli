@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -166,43 +165,17 @@ func resolveSource(ctx context.Context, src cpSource, cache map[string]*blob.Arc
 	}
 
 	// Detect if source is a file or directory
-	srcPath := strings.TrimPrefix(src.path, "/")
-	if srcPath == "" {
-		srcPath = "."
+	srcPath := blob.NormalizePath(src.path)
+	if !blobArchive.Exists(srcPath) {
+		return cpResolvedSource{}, fmt.Errorf("path not found in archive: %s", src.path)
 	}
-	isDir, dirErr := isArchiveDir(blobArchive, srcPath)
-	if dirErr != nil {
-		return cpResolvedSource{}, fmt.Errorf("checking source %s: %w", src.path, dirErr)
-	}
+	isDir := blobArchive.IsDir(srcPath)
 
 	return cpResolvedSource{
 		cpSource: src,
 		archive:  blobArchive,
 		isDir:    isDir,
 	}, nil
-}
-
-// isArchiveDir checks if the path is a directory in the archive.
-// It uses archive.Stat which synthesizes directory info from entry prefixes.
-func isArchiveDir(blobArchive *blob.Archive, path string) (bool, error) {
-	// Handle trailing slash hint from user input
-	if strings.HasSuffix(path, "/") {
-		path = strings.TrimSuffix(path, "/")
-		if path == "" {
-			path = "."
-		}
-	}
-
-	info, err := blobArchive.Stat(path)
-	if err != nil {
-		// Check if this is a "not exist" error
-		var pathErr *fs.PathError
-		if errors.As(err, &pathErr) && errors.Is(pathErr.Err, fs.ErrNotExist) {
-			return false, fmt.Errorf("path not found in archive: %s", path)
-		}
-		return false, err
-	}
-	return info.IsDir(), nil
 }
 
 // destInfo holds information about the destination path.
@@ -313,10 +286,7 @@ func prepareSingleSourceDest(src cpResolvedSource, di destInfo) (string, error) 
 
 // copyResolvedSource copies a resolved source to the destination.
 func copyResolvedSource(rsrc cpResolvedSource, destPath string, flags cpFlags, opts []blob.CopyOption, multiSource bool) (fileCount int, totalSize uint64, err error) {
-	srcPath := strings.TrimPrefix(rsrc.path, "/")
-	if srcPath == "" {
-		srcPath = "."
-	}
+	srcPath := blob.NormalizePath(rsrc.path)
 
 	if rsrc.isDir {
 		return copyDirectory(rsrc.archive, srcPath, rsrc.path, destPath, opts)
@@ -335,71 +305,40 @@ func copyResolvedSource(rsrc cpResolvedSource, destPath string, flags cpFlags, o
 
 // copyDirectory copies a directory recursively.
 func copyDirectory(blobArchive *blob.Archive, srcPath, displayPath, destPath string, opts []blob.CopyOption) (fileCount int, totalSize uint64, err error) {
-	// Normalize path - strip trailing slash for CopyDir (fs.ValidPath rejects trailing slashes)
-	normalizedPath := strings.TrimSuffix(srcPath, "/")
-	if normalizedPath == "" {
-		normalizedPath = "."
-	}
-
-	if err = blobArchive.CopyDir(destPath, normalizedPath, opts...); err != nil {
+	normalizedPath := blob.NormalizePath(srcPath)
+	stats, err := blobArchive.CopyDir(destPath, normalizedPath, opts...)
+	if err != nil {
 		return 0, 0, fmt.Errorf("copying directory %s: %w", displayPath, err)
 	}
-
-	// Use normalized path for prefix matching
-	prefix := normalizedPath
-	if prefix == "." {
-		prefix = ""
-	}
-
-	// Count files - use same prefix logic
-	if prefix == "" {
-		// Root copy - count all entries
-		for entry := range blobArchive.Entries() {
-			if !entry.Mode().IsDir() {
-				fileCount++
-				totalSize += entry.OriginalSize()
-			}
-		}
-	} else {
-		// Prefix copy - must add trailing slash for proper matching
-		for entry := range blobArchive.EntriesWithPrefix(prefix + "/") {
-			if !entry.Mode().IsDir() {
-				fileCount++
-				totalSize += entry.OriginalSize()
-			}
-		}
-		// Also check for exact file match (in case normalizedPath was both file and prefix)
-		if entry, ok := blobArchive.Entry(normalizedPath); ok && !entry.Mode().IsDir() {
-			fileCount++
-			totalSize += entry.OriginalSize()
-		}
-	}
-
-	return fileCount, totalSize, nil
+	return stats.FileCount, stats.TotalBytes, nil
 }
 
 // copyFileToDir copies a file into a directory.
 func copyFileToDir(blobArchive *blob.Archive, srcPath, displayPath, destPath string, opts []blob.CopyOption) (fileCount int, totalSize uint64, err error) {
 	// Verify source exists and is a file
-	entry, ok := blobArchive.Entry(srcPath)
-	if !ok {
+	if !blobArchive.IsFile(srcPath) {
+		if blobArchive.IsDir(srcPath) {
+			return 0, 0, fmt.Errorf("expected file but got directory: %s", displayPath)
+		}
 		return 0, 0, fmt.Errorf("file not found: %s", displayPath)
 	}
-	if entry.Mode().IsDir() {
-		return 0, 0, fmt.Errorf("expected file but got directory: %s", displayPath)
-	}
 
-	if err := blobArchive.CopyToWithOptions(destPath, []string{srcPath}, opts...); err != nil {
+	stats, err := blobArchive.CopyToWithOptions(destPath, []string{srcPath}, opts...)
+	if err != nil {
 		return 0, 0, fmt.Errorf("copying %s: %w", displayPath, err)
 	}
 
-	return 1, entry.OriginalSize(), nil
+	return stats.FileCount, stats.TotalBytes, nil
 }
 
 // copyFileToFile copies a single file to a specific destination path.
+// Uses manual implementation to control permissions (0644 default vs CopyFile's 0600).
 func copyFileToFile(blobArchive *blob.Archive, srcPath, displayPath, destPath string, flags cpFlags) (fileCount int, totalSize uint64, err error) {
 	entry, ok := blobArchive.Entry(srcPath)
 	if !ok {
+		if blobArchive.IsDir(srcPath) {
+			return 0, 0, fmt.Errorf("expected file but got directory: %s", displayPath)
+		}
 		return 0, 0, fmt.Errorf("file not found: %s", displayPath)
 	}
 	if entry.Mode().IsDir() {
