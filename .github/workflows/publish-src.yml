@@ -97,6 +97,24 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Debug - Inspect archive
+        run: |
+          echo "=== Inspecting archive ==="
+          ./blob inspect --output json "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}" | jq .
+
+          echo ""
+          echo "=== Checking for referrers with oras ==="
+          go install oras.land/oras/cmd/oras@latest
+          oras discover "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}" --output tree || echo "oras discover failed"
+
+          echo ""
+          echo "=== Checking for attestation tag ==="
+          # SLSA generator may use tag-based fallback
+          DIGEST="${{ needs.build-and-push.outputs.digest }}"
+          TAG="${DIGEST//:/\-}"
+          echo "Looking for tag: $TAG.att"
+          oras manifest fetch "${{ env.IMAGE_NAME }}:$TAG.att" 2>&1 || echo "No attestation tag found"
+
       - name: Verify with policy
         run: |
           ./blob verify \
