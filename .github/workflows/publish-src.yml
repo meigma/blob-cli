@@ -1,0 +1,102 @@
+name: Publish Source Archive
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # Required for Sigstore keyless signing
+  attestations: write # Required for GitHub attestations
+
+env:
+  IMAGE_NAME: ghcr.io/meigma/blob-cli/src
+  IMAGE_TAG: latest
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build blob CLI
+        run: go build -o blob .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push archive with signing
+        id: push
+        run: |
+          ./blob push --sign "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" .
+
+          # Get the digest using inspect
+          DIGEST=$(./blob inspect --output json "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" | jq -r '.digest')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Pushed with digest: ${DIGEST}"
+
+      - name: Generate SLSA provenance attestation
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.3.0
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+
+  verify:
+    name: Verify Archive
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build blob CLI
+        run: go build -o blob .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify archive with policy
+        run: |
+          echo "=== Inspecting archive ==="
+          ./blob inspect "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
+
+          echo ""
+          echo "=== Verifying with policy ==="
+          ./blob verify \
+            --policy .github/policies/src-image.yaml \
+            "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
+
+          echo ""
+          echo "=== Verification complete ==="
