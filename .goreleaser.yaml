@@ -1,0 +1,150 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema.json
+version: 2
+
+project_name: blob
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: blob
+    main: .
+    binary: blob
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/meigma/blob-cli/cmd.version={{.Version}}
+      - -X github.com/meigma/blob-cli/cmd.commit={{.ShortCommit}}
+      - -X github.com/meigma/blob-cli/cmd.date={{.Date}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE*
+      - README*
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+sboms:
+  - artifacts: archive
+    documents:
+      - "${artifact}.sbom.spdx.json"
+    cmd: syft
+    args:
+      - "${artifact}"
+      - "--output"
+      - "spdx-json=${document}"
+
+signs:
+  - id: checksum
+    cmd: flock
+    signature: "${artifact}.bundle"
+    args:
+      - "--exclusive"
+      - "/tmp/cosign.lock"
+      - "cosign"
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: checksum
+
+  - id: sbom
+    cmd: flock
+    signature: "${artifact}.bundle"
+    args:
+      - "--exclusive"
+      - "/tmp/cosign.lock"
+      - "cosign"
+      - "sign-blob"
+      - "--bundle=${signature}"
+      - "${artifact}"
+      - "--yes"
+    artifacts: sbom
+
+# Changelog is managed by release-please
+changelog:
+  disable: true
+
+brews:
+  - repository:
+      owner: meigma
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    directory: Formula
+    homepage: "https://github.com/meigma/blob-cli"
+    description: "A CLI for working with blob archives in OCI registries"
+    license: "MIT"
+    skip_upload: auto
+    commit_msg_template: "brew: update {{ .ProjectName }} to {{ .Tag }}"
+    test: |
+      system "#{bin}/blob", "version"
+    install: |
+      bin.install "blob"
+
+scoops:
+  - repository:
+      owner: meigma
+      name: scoop-bucket
+      token: "{{ .Env.SCOOP_BUCKET_TOKEN }}"
+    homepage: "https://github.com/meigma/blob-cli"
+    description: "A CLI for working with blob archives in OCI registries"
+    license: "MIT"
+    skip_upload: auto
+    commit_msg_template: "scoop: update {{ .ProjectName }} to {{ .Tag }}"
+
+release:
+  github:
+    owner: meigma
+    name: blob-cli
+  # Append to the release created by release-please
+  mode: append
+  draft: false
+  prerelease: auto
+  name_template: "v{{.Version}}"
+  footer: |
+    ## Verification
+
+    Verify the checksums signature:
+    ```bash
+    cosign verify-blob \
+      --bundle checksums.txt.bundle \
+      --certificate-identity-regexp="https://github.com/meigma/blob-cli" \
+      --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+      checksums.txt
+    ```
+
+    Verify an SBOM signature:
+    ```bash
+    cosign verify-blob \
+      --bundle blob_{{ .Version }}_linux_amd64.tar.gz.sbom.spdx.json.bundle \
+      --certificate-identity-regexp="https://github.com/meigma/blob-cli" \
+      --certificate-oidc-issuer="https://token.actions.githubusercontent.com" \
+      blob_{{ .Version }}_linux_amd64.tar.gz.sbom.spdx.json
+    ```
+
+    Verify artifact integrity:
+    ```bash
+    sha256sum -c checksums.txt --ignore-missing
+    ```
