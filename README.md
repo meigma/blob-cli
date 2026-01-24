@@ -7,6 +7,8 @@
 
 A CLI for working with blob archives in OCI registries. Push directories to registries, pull them back, or extract individual files using HTTP range requests without downloading entire archives.
 
+![Demo](demo/demo.gif)
+
 ## Features
 
 - **Push/Pull directories** to OCI registries as blob archives
