@@ -12,4 +12,4 @@ signature:
 provenance:
   slsa:
     repository: meigma/blob-cli
-    branch: refs/heads/master
+    branch: master
