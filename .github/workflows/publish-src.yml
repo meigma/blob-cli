@@ -10,7 +10,8 @@ on:
 permissions:
   contents: read
   packages: write
-  id-token: write # Required for Sigstore keyless signing and SLSA
+  id-token: write # Required for Sigstore keyless signing
+  attestations: write # Required for GitHub attestations
 
 env:
   IMAGE_NAME: ghcr.io/meigma/blob-cli/src
@@ -25,14 +26,14 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
           cache: true
 
       - name: Build blob CLI
@@ -55,36 +56,28 @@ jobs:
           echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
           echo "Pushed with digest: ${DIGEST}"
 
-  provenance:
-    name: Generate SLSA Provenance
-    needs: [build-and-push]
-    permissions:
-      actions: read
-      id-token: write
-      packages: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
-    with:
-      image: ghcr.io/meigma/blob-cli/src
-      digest: ${{ needs.build-and-push.outputs.digest }}
-      registry-username: ${{ github.actor }}
-    secrets:
-      registry-password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate SLSA provenance attestation
+        uses: actions/attest-build-provenance@ef244123eb79f2f7a7e75d99086184180e6d0018 # v2.3.0
+        with:
+          subject-name: ${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
 
   verify:
     name: Verify Archive
-    needs: [build-and-push, provenance]
+    needs: [build-and-push]
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
 
       - name: Set up Go
-        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: "1.25"
+          go-version-file: go.mod
           cache: true
 
       - name: Build blob CLI
@@ -97,38 +90,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify archive and attestations
+      - name: Verify archive with policy
         run: |
           echo "=== Inspecting archive ==="
           ./blob inspect "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
 
           echo ""
-          echo "=== Verifying SLSA attestation exists ==="
-          # The SLSA generator uses tag-based storage for attestations
-          DIGEST="${{ needs.build-and-push.outputs.digest }}"
-          TAG="${DIGEST//:/\-}"
-
-          go install oras.land/oras/cmd/oras@latest
-
-          echo "Checking for attestation at tag: $TAG.att"
-          if oras manifest fetch "${{ env.IMAGE_NAME }}:$TAG.att" > /dev/null 2>&1; then
-            echo "✓ SLSA attestation found"
-
-            # Verify it's a valid SLSA provenance attestation
-            PRED_TYPE=$(oras manifest fetch "${{ env.IMAGE_NAME }}:$TAG.att" 2>/dev/null | jq -r '.layers[0].annotations.predicateType // empty')
-            if [[ "$PRED_TYPE" == "https://slsa.dev/provenance/v0.2" ]]; then
-              echo "✓ Valid SLSA provenance v0.2 attestation"
-            else
-              echo "✗ Unexpected predicate type: $PRED_TYPE"
-              exit 1
-            fi
-          else
-            echo "✗ SLSA attestation not found"
-            exit 1
-          fi
+          echo "=== Verifying with policy ==="
+          ./blob verify \
+            --policy .github/policies/src-image.yaml \
+            "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
 
           echo ""
           echo "=== Verification complete ==="
-          echo "Archive: ${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
-          echo "- Sigstore signature: ✓"
-          echo "- SLSA provenance: ✓"
