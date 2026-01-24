@@ -1,0 +1,104 @@
+name: Publish Source Archive
+
+on:
+  pull_request:
+    branches: [master]
+  # TODO: Revert to push-only after testing
+  # push:
+  #   branches: [master]
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write # Required for Sigstore keyless signing and SLSA
+
+env:
+  IMAGE_NAME: ghcr.io/meigma/blob-cli/src
+  IMAGE_TAG: latest
+
+jobs:
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    outputs:
+      digest: ${{ steps.push.outputs.digest }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Build blob CLI
+        run: go build -o blob .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push archive with signing
+        id: push
+        run: |
+          ./blob push --sign "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" .
+
+          # Get the digest using inspect
+          DIGEST=$(./blob inspect --output json "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" | jq -r '.digest')
+          echo "digest=${DIGEST}" >> "$GITHUB_OUTPUT"
+          echo "Pushed with digest: ${DIGEST}"
+
+  provenance:
+    name: Generate SLSA Provenance
+    needs: [build-and-push]
+    permissions:
+      actions: read
+      id-token: write
+      packages: write
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_container_slsa3.yml@v2.1.0
+    with:
+      image: ghcr.io/meigma/blob-cli/src
+      digest: ${{ needs.build-and-push.outputs.digest }}
+      registry-username: ${{ github.actor }}
+    secrets:
+      registry-password: ${{ secrets.GITHUB_TOKEN }}
+
+  verify:
+    name: Verify Archive
+    needs: [build-and-push, provenance]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: "1.25"
+          cache: true
+
+      - name: Build blob CLI
+        run: go build -o blob .
+
+      - name: Log in to GHCR
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify with policy
+        run: |
+          ./blob verify \
+            --policy .github/policies/src-image.yaml \
+            "${{ env.IMAGE_NAME }}@${{ needs.build-and-push.outputs.digest }}"
