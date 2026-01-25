@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.0](https://github.com/meigma/blob-cli/compare/v1.0.0...v1.1.0) (2026-01-25)
+
+
+### Features
+
+* **cache:** implement comprehensive caching support ([#27](https://github.com/meigma/blob-cli/issues/27)) ([ed360f2](https://github.com/meigma/blob-cli/commit/ed360f2cf395158d0cf18a81eb1a2d79cebcca2d))
+* **ci:** add publish-src workflow for test image ([#23](https://github.com/meigma/blob-cli/issues/23)) ([b96d513](https://github.com/meigma/blob-cli/commit/b96d5130506dc9e148ed410a20649ded397d75a8))
+
+
+### Bug Fixes
+
+* **deps:** update blob to v1.1.1 ([#28](https://github.com/meigma/blob-cli/issues/28)) ([ccec3ee](https://github.com/meigma/blob-cli/commit/ccec3ee631c979d9993e6f42a3d44aaa89620e11))
+* **policy:** use branch name without refs/heads prefix ([#25](https://github.com/meigma/blob-cli/issues/25)) ([78d6aac](https://github.com/meigma/blob-cli/commit/78d6aac709f2a056f607cc00c503c44f993bd220))
+
 ## 1.0.0 (2026-01-24)
 
 
