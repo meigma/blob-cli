@@ -17,7 +17,7 @@ A CLI for working with blob archives in OCI registries. Push directories to regi
 - **Policy verification** for signatures and SLSA provenance attestations
 - **Interactive TUI** file browser for exploring archives
 - **Alias support** for frequently used references
-- **Content caching** with deduplication across archives
+- **Multi-layer caching** with content deduplication, manifest caching, and per-cache control
 
 ## Installation
 
@@ -153,6 +153,58 @@ policies:
 | `BLOB_USERNAME` | Registry username |
 | `BLOB_PASSWORD` | Registry password |
 | `NO_COLOR` | Disable colored output |
+
+## Caching
+
+Blob maintains several caches to improve performance and reduce bandwidth usage:
+
+| Cache | Description |
+|-------|-------------|
+| `content` | File content cache (deduplicated by hash across archives) |
+| `blocks` | HTTP range block cache |
+| `refs` | Tag to digest mappings |
+| `manifests` | OCI manifest cache |
+| `indexes` | Archive index cache |
+
+Cache location follows XDG Base Directory Specification (`~/.cache/blob` by default).
+
+### Cache Commands
+
+```bash
+# Show cache sizes and file counts
+blob cache status
+
+# Show cache directory paths
+blob cache path
+
+# Clear all caches
+blob cache clear
+
+# Clear a specific cache type
+blob cache clear indexes
+```
+
+### Cache Configuration
+
+```yaml
+# ~/.config/blob/config.yaml
+cache:
+  enabled: true
+  dir: /custom/cache/path  # Optional: override cache location
+  ref_ttl: 5m              # TTL for tag-to-digest cache (default: 5m)
+
+  # Per-cache control (all enabled by default when cache.enabled is true)
+  content:
+    enabled: true
+  blocks:
+    enabled: true
+  refs:
+    enabled: true
+  manifests:
+    enabled: true
+  indexes:
+    enabled: false  # Disable specific cache types
+```
 
 ## Signing and Verification
 

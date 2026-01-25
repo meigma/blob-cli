@@ -30,16 +30,27 @@ type DirEntry struct {
 	Children []*DirEntry
 }
 
+// InspectOptions holds options for the Inspect function.
+type InspectOptions struct {
+	ClientOpts  []blob.Option
+	InspectOpts []blob.InspectOption
+}
+
 // Inspect fetches archive metadata from a registry without downloading file data.
 // Additional client options can be passed to customize the client behavior.
 func Inspect(ctx context.Context, ref string, opts ...blob.Option) (*blob.InspectResult, error) {
-	clientOpts := append([]blob.Option{blob.WithDockerConfig()}, opts...)
+	return InspectWithOptions(ctx, ref, InspectOptions{ClientOpts: opts})
+}
+
+// InspectWithOptions fetches archive metadata with full control over client and inspect options.
+func InspectWithOptions(ctx context.Context, ref string, opts InspectOptions) (*blob.InspectResult, error) {
+	clientOpts := append([]blob.Option{blob.WithDockerConfig()}, opts.ClientOpts...)
 	client, err := blob.NewClient(clientOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("creating client: %w", err)
 	}
 
-	result, err := client.Inspect(ctx, ref)
+	result, err := client.Inspect(ctx, ref, opts.InspectOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("inspecting archive %s: %w", ref, err)
 	}

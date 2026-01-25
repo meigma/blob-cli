@@ -1,0 +1,248 @@
+# Comprehensive cache integration tests
+# Tests cache path, status, and clear commands with various scenarios
+
+# ==============================================================================
+# SECTION 1: Initial State - Cache directories don't exist
+# ==============================================================================
+
+# Verify cache status shows 0 for everything initially
+exec blob cache status
+stdout 'Cache directory:'
+stdout '0 files'
+stdout 'Total: 0 \(0 files\)'
+
+# Verify cache path shows correct XDG-based paths
+exec blob cache path
+stdout 'Cache directory:'
+stdout '\.cache/blob'
+stdout 'content:'
+stdout 'blocks:'
+stdout 'refs:'
+stdout 'manifests:'
+stdout 'indexes:'
+
+# Verify JSON output structure for cache path
+exec blob cache path --output json
+stdout '"root":'
+stdout '"paths":'
+stdout '"content":'
+stdout '"blocks":'
+stdout '"refs":'
+stdout '"manifests":'
+stdout '"indexes":'
+
+# Verify JSON output structure for cache status (initial state)
+exec blob cache status --output json
+stdout '"root":'
+stdout '"caches":'
+stdout '"total_size": 0'
+stdout '"total_files": 0'
+
+# ==============================================================================
+# SECTION 2: Cache Population via Operations
+# ==============================================================================
+
+# Push an archive to populate some caches
+gentag TAG1
+exec blob --plain-http push $REGISTRY/cache-test:$TAG1 sample-project
+stdout 'Pushed'
+
+# Pull the archive to populate more caches (content, indexes)
+mkdir output1
+exec blob --plain-http pull $REGISTRY/cache-test:$TAG1 output1
+stdout 'Pulled'
+
+# Verify cache status now shows non-zero values
+exec blob cache status
+stdout 'Cache directory:'
+# At least one cache should have files now
+! stdout 'Total: 0 \(0 files\)'
+
+# Verify JSON output shows non-zero totals (files > 0)
+exec blob cache status --output json
+stdout '"caches":'
+stdout '"enabled": true'
+stdout '"total_files": [1-9]'
+
+# ==============================================================================
+# SECTION 3: Cache Clear - Specific Type
+# ==============================================================================
+
+# Clear only the indexes cache
+exec blob cache clear indexes --force
+stdout 'Cleared'
+stdout 'indexes'
+
+# Verify status still shows structure
+exec blob cache status
+stdout 'indexes'
+
+# Status JSON should still show structure
+exec blob cache status --output json
+stdout '"name": "indexes"'
+
+# ==============================================================================
+# SECTION 4: Cache Clear - All Caches
+# ==============================================================================
+
+# Re-populate caches by doing another pull
+gentag TAG2
+exec blob --plain-http push $REGISTRY/cache-test2:$TAG2 sample-project
+mkdir output2
+exec blob --plain-http pull $REGISTRY/cache-test2:$TAG2 output2
+
+# Clear all caches
+exec blob cache clear --force
+stdout 'Cleared'
+
+# Verify all caches are empty
+exec blob cache status
+stdout 'Total: 0 \(0 files\)'
+
+# JSON format should also show zeros
+exec blob cache status --output json
+stdout '"total_size": 0'
+stdout '"total_files": 0'
+
+# ==============================================================================
+# SECTION 5: Cache Clear - Requires --force for JSON output
+# ==============================================================================
+
+# Repopulate caches
+gentag TAG3
+exec blob --plain-http push $REGISTRY/cache-test3:$TAG3 sample-project
+mkdir output3
+exec blob --plain-http pull $REGISTRY/cache-test3:$TAG3 output3
+
+# Clear with JSON output requires --force flag
+! exec blob cache clear --output json
+stderr '--force required'
+
+# With --force it works
+exec blob cache clear --force --output json
+stdout '"cleared":'
+stdout '"total_size_cleared":'
+stdout '"total_files_cleared":'
+
+# ==============================================================================
+# SECTION 6: Per-Cache Enable/Disable via Config
+# ==============================================================================
+
+# Clear all caches first to start fresh
+exec blob cache clear --force
+
+# Create config directory and file that disables the indexes cache
+mkdir $WORK/.config/blob
+cp disabled-indexes-config.yaml $WORK/.config/blob/config.yaml
+
+# Verify status shows indexes as disabled
+exec blob cache status
+stdout 'indexes'
+stdout '(disabled)'
+
+# JSON output should show enabled: false for the indexes entry specifically
+exec blob cache status --output json
+stdout '(?s)"name": "indexes".*"enabled": false'
+
+# Push and pull - indexes cache should not be populated (but others should be)
+gentag TAG4
+exec blob --plain-http push $REGISTRY/cache-disabled:$TAG4 sample-project
+mkdir output4
+exec blob --plain-http pull $REGISTRY/cache-disabled:$TAG4 output4
+
+# Status still shows disabled indicator
+exec blob cache status
+stdout '(disabled)'
+
+# Verify in JSON: indexes is disabled and stays empty, while other caches are populated
+exec blob cache status --output json
+# indexes entry should be disabled and have 0 files
+stdout '(?s)"name": "indexes".*"enabled": false'
+stdout '(?s)"name": "indexes".*"files": 0'
+# Total files should be > 0 (other caches populated)
+stdout '"total_files": [1-9]'
+
+# ==============================================================================
+# SECTION 7: Custom Cache Directory via Config
+# ==============================================================================
+
+# Create config with custom cache directory
+cp custom-cache-dir-config.yaml $WORK/.config/blob/config.yaml
+
+# Verify cache path uses custom directory
+exec blob cache path
+stdout 'custom-cache-location'
+
+# Verify JSON output also shows custom path
+exec blob cache path --output json
+stdout 'custom-cache-location'
+
+# Push and pull should use custom cache location
+gentag TAG5
+exec blob --plain-http push $REGISTRY/cache-custom:$TAG5 sample-project
+mkdir output5
+exec blob --plain-http pull $REGISTRY/cache-custom:$TAG5 output5
+
+# Verify files exist in custom location
+exists $WORK/custom-cache-location
+
+# Status should show files in custom location
+exec blob cache status
+stdout 'custom-cache-location'
+
+# ==============================================================================
+# SECTION 8: Clear Invalid Cache Type
+# ==============================================================================
+
+! exec blob cache clear invalidtype --force
+stderr 'invalid cache type'
+
+# ==============================================================================
+# SECTION 9: Clear Individual Cache Types
+# ==============================================================================
+
+# Reset to default config
+cp default-config.yaml $WORK/.config/blob/config.yaml
+
+# Populate caches
+gentag TAG6
+exec blob --plain-http push $REGISTRY/cache-individual:$TAG6 sample-project
+mkdir output6
+exec blob --plain-http pull $REGISTRY/cache-individual:$TAG6 output6
+
+# Clear content cache only
+exec blob cache clear content --force
+stdout 'content'
+
+# Clear manifests cache only
+exec blob cache clear manifests --force
+stdout 'manifests'
+
+# Clear refs cache only
+exec blob cache clear refs --force
+stdout 'refs'
+
+# Clear blocks cache only
+exec blob cache clear blocks --force
+stdout 'blocks'
+
+-- disabled-indexes-config.yaml --
+output: text
+compression: zstd
+cache:
+  enabled: true
+  indexes:
+    enabled: false
+
+-- custom-cache-dir-config.yaml --
+output: text
+compression: zstd
+cache:
+  enabled: true
+  dir: custom-cache-location
+
+-- default-config.yaml --
+output: text
+compression: zstd
+cache:
+  enabled: true

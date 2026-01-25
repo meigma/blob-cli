@@ -60,7 +60,28 @@ func showText(cfg *internalcfg.Config) error {
 	fmt.Println()
 	fmt.Println("cache:")
 	fmt.Printf("  enabled:    %t\n", cfg.Cache.Enabled)
-	fmt.Printf("  max_size:   %s\n", cfg.Cache.MaxSize)
+	if cfg.Cache.Dir != "" {
+		fmt.Printf("  dir:        %s\n", cfg.Cache.Dir)
+	}
+	if cfg.Cache.RefTTL != "" {
+		fmt.Printf("  ref_ttl:    %s\n", cfg.Cache.RefTTL)
+	}
+	if cfg.Cache.MaxSize != "" {
+		fmt.Printf("  max_size:   %s (deprecated)\n", cfg.Cache.MaxSize)
+	}
+
+	// Per-cache settings (only show if explicitly configured)
+	showCacheType := func(name string, individual *internalcfg.IndividualCacheConfig, enabled bool) {
+		if individual != nil && individual.Enabled != nil {
+			fmt.Printf("  %s:\n", name)
+			fmt.Printf("    enabled:  %t\n", enabled)
+		}
+	}
+	showCacheType("content", cfg.Cache.Content, cfg.Cache.ContentEnabled())
+	showCacheType("blocks", cfg.Cache.Blocks, cfg.Cache.BlocksEnabled())
+	showCacheType("refs", cfg.Cache.Refs, cfg.Cache.RefsEnabled())
+	showCacheType("manifests", cfg.Cache.Manifests, cfg.Cache.ManifestsEnabled())
+	showCacheType("indexes", cfg.Cache.Indexes, cfg.Cache.IndexesEnabled())
 
 	// Aliases (sorted for deterministic output)
 	fmt.Println()

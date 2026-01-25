@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/meigma/blob"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -29,12 +30,14 @@ archive, similar to the tree command.`,
 func init() {
 	treeCmd.Flags().IntP("level", "L", 0, "descend only n levels deep (0 = unlimited)")
 	treeCmd.Flags().Bool("dirsfirst", false, "list directories before files")
+	treeCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
 }
 
 // treeFlags holds the parsed command flags.
 type treeFlags struct {
 	level     int
 	dirsFirst bool
+	skipCache bool
 }
 
 // treeResult contains the tree output data for JSON format.
@@ -71,7 +74,15 @@ func runTree(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result, err := archive.Inspect(cmd.Context(), ref, clientOpts(cfg)...)
+	var opts archive.InspectOptions
+	if flags.skipCache {
+		opts.ClientOpts = clientOptsNoCache(cfg)
+		opts.InspectOpts = []blob.InspectOption{blob.InspectWithSkipCache()}
+	} else {
+		opts.ClientOpts = clientOpts(cfg)
+	}
+
+	result, err := archive.InspectWithOptions(cmd.Context(), ref, opts)
 	if err != nil {
 		return err
 	}
@@ -103,6 +114,11 @@ func parseTreeFlags(cmd *cobra.Command) (treeFlags, error) {
 	flags.dirsFirst, err = cmd.Flags().GetBool("dirsfirst")
 	if err != nil {
 		return flags, fmt.Errorf("reading dirsfirst flag: %w", err)
+	}
+
+	flags.skipCache, err = cmd.Flags().GetBool("skip-cache")
+	if err != nil {
+		return flags, fmt.Errorf("reading skip-cache flag: %w", err)
 	}
 
 	return flags, nil

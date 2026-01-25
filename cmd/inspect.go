@@ -41,6 +41,10 @@ Displays information including:
 	RunE: runInspect,
 }
 
+func init() {
+	inspectCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
+}
+
 // inspectOutput contains the inspect output data for JSON format.
 type inspectOutput struct {
 	Ref          string            `json:"ref"`
@@ -77,8 +81,20 @@ func runInspect(cmd *cobra.Command, args []string) error {
 
 	inputRef := args[0]
 	resolvedRef := cfg.ResolveAlias(inputRef)
+	skipCache, err := cmd.Flags().GetBool("skip-cache")
+	if err != nil {
+		return fmt.Errorf("reading skip-cache flag: %w", err)
+	}
 
-	result, err := archive.Inspect(cmd.Context(), resolvedRef, clientOpts(cfg)...)
+	var opts archive.InspectOptions
+	if skipCache {
+		opts.ClientOpts = clientOptsNoCache(cfg)
+		opts.InspectOpts = []blob.InspectOption{blob.InspectWithSkipCache()}
+	} else {
+		opts.ClientOpts = clientOpts(cfg)
+	}
+
+	result, err := archive.InspectWithOptions(cmd.Context(), resolvedRef, opts)
 	if err != nil {
 		return err
 	}

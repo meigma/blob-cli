@@ -77,7 +77,21 @@ compression: zstd
 # Cache settings
 cache:
   enabled: true
-  max_size: 5GB
+  # ref_ttl: 5m  # TTL for tag-to-digest cache entries (default: 5m)
+
+  # Per-cache configuration (optional)
+  # When cache.enabled is true, all caches are enabled by default.
+  # Uncomment to disable specific caches:
+  # content:
+  #   enabled: false
+  # blocks:
+  #   enabled: false
+  # refs:
+  #   enabled: false
+  # manifests:
+  #   enabled: false
+  # indexes:
+  #   enabled: false
 
 # Aliases for frequently used references
 # Usage: blob pull foo:v1 → ghcr.io/acme/repo/foo:v1
