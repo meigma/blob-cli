@@ -7,7 +7,7 @@ require (
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/meigma/blob v1.1.0
+	github.com/meigma/blob v1.1.1
 	github.com/meigma/blob/policy/opa v0.0.0-20260121212824-972ce5f91c94
 	github.com/meigma/blob/policy/sigstore v0.0.0-20260121212824-972ce5f91c94
 	github.com/meigma/blob/policy/slsa v0.0.0-20260121212824-972ce5f91c94
