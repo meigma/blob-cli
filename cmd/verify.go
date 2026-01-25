@@ -44,6 +44,7 @@ func init() {
 	verifyCmd.Flags().StringArray("policy", nil, "policy file for verification (repeatable)")
 	verifyCmd.Flags().String("policy-rego", "", "OPA Rego policy file")
 	verifyCmd.Flags().Bool("no-default-policy", false, "skip policies from config file")
+	verifyCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
 }
 
 // verifyResult contains the result of a verify operation.
@@ -63,6 +64,7 @@ type verifyFlags struct {
 	policyFiles     []string
 	policyRego      string
 	noDefaultPolicy bool
+	skipCache       bool
 }
 
 func runVerify(cmd *cobra.Command, args []string) error {
@@ -107,25 +109,7 @@ func runVerify(cmd *cobra.Command, args []string) error {
 
 	// 7. Handle no-policies case
 	if len(policies) == 0 {
-		// No policies - vacuous success with warning
-		inspectResult, inspectErr := archive.Inspect(cmd.Context(), resolvedRef, clientOpts(cfg)...)
-		if inspectErr != nil {
-			return fmt.Errorf("inspecting archive: %w", inspectErr)
-		}
-
-		result.Digest = inspectResult.Digest()
-		result.Verified = false
-		result.Status = "no_policies"
-
-		// Fetch referrers for signatures/attestations
-		populateReferrers(cmd.Context(), inspectResult, &result)
-
-		// Output warning and result
-		if !cfg.Quiet && viper.GetString("output") != internalcfg.OutputJSON {
-			fmt.Fprintln(os.Stderr, "Warning: No policies applied - archive not verified")
-		}
-
-		return outputVerifyResult(cfg, &result)
+		return handleNoPolicies(cmd, cfg, resolvedRef, &result, flags.skipCache)
 	}
 
 	// 8. Create client with policies for verification
@@ -133,14 +117,25 @@ func runVerify(cmd *cobra.Command, args []string) error {
 	for _, p := range policies {
 		policyOpts = append(policyOpts, blob.WithPolicy(p))
 	}
-	client, err := newClient(cfg, policyOpts...)
+
+	var client *blob.Client
+	if flags.skipCache {
+		allOpts := append(clientOptsNoCache(cfg), policyOpts...)
+		client, err = blob.NewClient(allOpts...)
+	} else {
+		client, err = newClient(cfg, policyOpts...)
+	}
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}
 
 	// 9. Verify by calling Inspect (which triggers policy evaluation)
 	ctx := cmd.Context()
-	inspectResult, err := client.Inspect(ctx, resolvedRef)
+	var inspectOpts []blob.InspectOption
+	if flags.skipCache {
+		inspectOpts = append(inspectOpts, blob.InspectWithSkipCache())
+	}
+	inspectResult, err := client.Inspect(ctx, resolvedRef, inspectOpts...)
 	if err != nil {
 		if errors.Is(err, blob.ErrPolicyViolation) {
 			return &ExitError{
@@ -182,7 +177,40 @@ func parseVerifyFlags(cmd *cobra.Command) (verifyFlags, error) {
 		return flags, fmt.Errorf("reading no-default-policy flag: %w", err)
 	}
 
+	flags.skipCache, err = cmd.Flags().GetBool("skip-cache")
+	if err != nil {
+		return flags, fmt.Errorf("reading skip-cache flag: %w", err)
+	}
+
 	return flags, nil
+}
+
+// handleNoPolicies handles the case where no policies are specified.
+func handleNoPolicies(cmd *cobra.Command, cfg *internalcfg.Config, resolvedRef string, result *verifyResult, skipCache bool) error {
+	var opts archive.InspectOptions
+	if skipCache {
+		opts.ClientOpts = clientOptsNoCache(cfg)
+		opts.InspectOpts = []blob.InspectOption{blob.InspectWithSkipCache()}
+	} else {
+		opts.ClientOpts = clientOpts(cfg)
+	}
+
+	inspectResult, err := archive.InspectWithOptions(cmd.Context(), resolvedRef, opts)
+	if err != nil {
+		return fmt.Errorf("inspecting archive: %w", err)
+	}
+
+	result.Digest = inspectResult.Digest()
+	result.Verified = false
+	result.Status = "no_policies"
+
+	populateReferrers(cmd.Context(), inspectResult, result)
+
+	if !cfg.Quiet && viper.GetString("output") != internalcfg.OutputJSON {
+		fmt.Fprintln(os.Stderr, "Warning: No policies applied - archive not verified")
+	}
+
+	return outputVerifyResult(cfg, result)
 }
 
 // populateReferrers fetches signatures and attestations and adds them to the result.

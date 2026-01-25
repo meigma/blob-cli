@@ -118,6 +118,9 @@ func initConfig() {
 	viper.SetEnvPrefix("BLOB")
 	viper.AutomaticEnv()
 
+	// Bind cache.dir to BLOB_CACHE_DIR explicitly for nested key
+	viper.BindEnv("cache.dir", "BLOB_CACHE_DIR") //nolint:errcheck // best effort
+
 	// Config file is optional - don't fail if missing
 	viper.ReadInConfig() //nolint:errcheck // config file is optional
 }

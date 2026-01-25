@@ -43,4 +43,5 @@ func SetDefaults(v *viper.Viper) {
 	v.SetDefault("compression", CompressionZstd)
 	v.SetDefault("cache.enabled", true)
 	v.SetDefault("cache.max_size", "5GB")
+	v.SetDefault("cache.ref_ttl", "5m")
 }

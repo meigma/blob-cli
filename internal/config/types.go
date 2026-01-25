@@ -32,11 +32,90 @@ type Config struct {
 
 // CacheConfig holds cache-related settings.
 type CacheConfig struct {
-	// Enabled controls whether caching is active.
+	// Enabled controls whether caching is active globally.
 	Enabled bool `mapstructure:"enabled" json:"enabled"`
 
-	// MaxSize is the maximum cache size (e.g., "5GB", "500MB").
-	MaxSize string `mapstructure:"max_size" json:"max_size"`
+	// MaxSize is deprecated. Use per-cache settings instead.
+	// Kept for backward compatibility.
+	MaxSize string `mapstructure:"max_size" json:"max_size,omitempty"`
+
+	// Dir overrides the cache directory path.
+	// If empty, uses XDG Base Directory Specification ($XDG_CACHE_HOME/blob or ~/.cache/blob).
+	Dir string `mapstructure:"dir" json:"dir,omitempty"`
+
+	// RefTTL sets the TTL for reference cache entries (e.g., "5m", "1h").
+	// Default: 5 minutes.
+	RefTTL string `mapstructure:"ref_ttl" json:"ref_ttl,omitempty"`
+
+	// Per-cache configuration (optional).
+	// When nil, inherits from top-level Enabled.
+	Content   *IndividualCacheConfig `mapstructure:"content" json:"content,omitempty"`
+	Blocks    *IndividualCacheConfig `mapstructure:"blocks" json:"blocks,omitempty"`
+	Refs      *IndividualCacheConfig `mapstructure:"refs" json:"refs,omitempty"`
+	Manifests *IndividualCacheConfig `mapstructure:"manifests" json:"manifests,omitempty"`
+	Indexes   *IndividualCacheConfig `mapstructure:"indexes" json:"indexes,omitempty"`
+}
+
+// IndividualCacheConfig holds settings for a single cache type.
+type IndividualCacheConfig struct {
+	// Enabled controls whether this cache type is active.
+	// If nil when parent cache.enabled is true, defaults to true.
+	Enabled *bool `mapstructure:"enabled" json:"enabled,omitempty"`
+}
+
+// ContentEnabled returns whether the content cache is enabled.
+func (c *CacheConfig) ContentEnabled() bool {
+	if !c.Enabled {
+		return false
+	}
+	if c.Content == nil || c.Content.Enabled == nil {
+		return true
+	}
+	return *c.Content.Enabled
+}
+
+// BlocksEnabled returns whether the blocks cache is enabled.
+func (c *CacheConfig) BlocksEnabled() bool {
+	if !c.Enabled {
+		return false
+	}
+	if c.Blocks == nil || c.Blocks.Enabled == nil {
+		return true
+	}
+	return *c.Blocks.Enabled
+}
+
+// RefsEnabled returns whether the refs cache is enabled.
+func (c *CacheConfig) RefsEnabled() bool {
+	if !c.Enabled {
+		return false
+	}
+	if c.Refs == nil || c.Refs.Enabled == nil {
+		return true
+	}
+	return *c.Refs.Enabled
+}
+
+// ManifestsEnabled returns whether the manifests cache is enabled.
+func (c *CacheConfig) ManifestsEnabled() bool {
+	if !c.Enabled {
+		return false
+	}
+	if c.Manifests == nil || c.Manifests.Enabled == nil {
+		return true
+	}
+	return *c.Manifests.Enabled
+}
+
+// IndexesEnabled returns whether the indexes cache is enabled.
+func (c *CacheConfig) IndexesEnabled() bool {
+	if !c.Enabled {
+		return false
+	}
+	if c.Indexes == nil || c.Indexes.Enabled == nil {
+		return true
+	}
+	return *c.Indexes.Enabled
 }
 
 // PolicyRule maps a reference pattern to verification policies.

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/meigma/blob"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
@@ -35,13 +36,15 @@ func init() {
 	lsCmd.Flags().BoolP("human", "h", false, "human-readable sizes (use with -l)")
 	lsCmd.Flags().BoolP("long", "l", false, "long format (permissions, size, hash)")
 	lsCmd.Flags().Bool("digest", false, "show file digests")
+	lsCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
 }
 
 // lsFlags holds the parsed command flags.
 type lsFlags struct {
-	long   bool
-	human  bool
-	digest bool
+	long      bool
+	human     bool
+	digest    bool
+	skipCache bool
 }
 
 // lsResult contains the ls output data for JSON format.
@@ -80,7 +83,15 @@ func runLs(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	result, err := archive.Inspect(cmd.Context(), ref, clientOpts(cfg)...)
+	var opts archive.InspectOptions
+	if flags.skipCache {
+		opts.ClientOpts = clientOptsNoCache(cfg)
+		opts.InspectOpts = []blob.InspectOption{blob.InspectWithSkipCache()}
+	} else {
+		opts.ClientOpts = clientOpts(cfg)
+	}
+
+	result, err := archive.InspectWithOptions(cmd.Context(), ref, opts)
 	if err != nil {
 		return err
 	}
@@ -117,6 +128,11 @@ func parseLsFlags(cmd *cobra.Command) (lsFlags, error) {
 	flags.digest, err = cmd.Flags().GetBool("digest")
 	if err != nil {
 		return flags, fmt.Errorf("reading digest flag: %w", err)
+	}
+
+	flags.skipCache, err = cmd.Flags().GetBool("skip-cache")
+	if err != nil {
+		return flags, fmt.Errorf("reading skip-cache flag: %w", err)
 	}
 
 	return flags, nil

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -20,12 +21,25 @@ func validate(cfg *Config) error {
 	if err := validateCompression(cfg.Compression); err != nil {
 		return err
 	}
-	if cfg.Cache.MaxSize != "" {
-		if err := validateCacheSize(cfg.Cache.MaxSize); err != nil {
+	if err := validateCache(&cfg.Cache); err != nil {
+		return err
+	}
+	return validatePolicies(cfg.Policies)
+}
+
+// validateCache validates cache configuration.
+func validateCache(cache *CacheConfig) error {
+	if cache.MaxSize != "" {
+		if err := validateCacheSize(cache.MaxSize); err != nil {
 			return err
 		}
 	}
-	return validatePolicies(cfg.Policies)
+	if cache.RefTTL != "" {
+		if _, err := time.ParseDuration(cache.RefTTL); err != nil {
+			return fmt.Errorf("%w: cache.ref_ttl must be a valid duration (e.g., 5m, 1h), got %q", ErrInvalidConfig, cache.RefTTL)
+		}
+	}
+	return nil
 }
 
 func validateOutput(v string) error {

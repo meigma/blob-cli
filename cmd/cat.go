@@ -27,6 +27,10 @@ downloading the entire archive.`,
 	RunE: runCat,
 }
 
+func init() {
+	catCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
+}
+
 func runCat(cmd *cobra.Command, args []string) error {
 	// 1. Get config from context
 	cfg := internalcfg.FromContext(cmd.Context())
@@ -38,23 +42,39 @@ func runCat(cmd *cobra.Command, args []string) error {
 	inputRef := args[0]
 	filePaths := args[1:]
 
-	// 3. Resolve alias
+	// 3. Parse flags
+	skipCache, flagErr := cmd.Flags().GetBool("skip-cache")
+	if flagErr != nil {
+		return fmt.Errorf("reading skip-cache flag: %w", flagErr)
+	}
+
+	// 4. Resolve alias
 	resolvedRef := cfg.ResolveAlias(inputRef)
 
-	// 4. Create client (lazy - only downloads manifest + index)
-	client, err := newClient(cfg)
+	// 5. Create client (lazy - only downloads manifest + index)
+	var client *blob.Client
+	var err error
+	if skipCache {
+		client, err = blob.NewClient(clientOptsNoCache(cfg)...)
+	} else {
+		client, err = newClient(cfg)
+	}
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}
 
-	// 5. Pull archive (lazy - does NOT download data blob)
+	// 6. Pull archive (lazy - does NOT download data blob)
 	ctx := cmd.Context()
-	blobArchive, err := client.Pull(ctx, resolvedRef)
+	var pullOpts []blob.PullOption
+	if skipCache {
+		pullOpts = append(pullOpts, blob.PullWithSkipCache())
+	}
+	blobArchive, err := client.Pull(ctx, resolvedRef, pullOpts...)
 	if err != nil {
 		return fmt.Errorf("accessing archive %s: %w", resolvedRef, err)
 	}
 
-	// 6. Validate all files exist and are not directories before outputting anything
+	// 7. Validate all files exist and are not directories before outputting anything
 	normalizedPaths, err := blobArchive.ValidateFiles(filePaths...)
 	if err != nil {
 		var ve *blob.ValidationError
@@ -71,12 +91,12 @@ func runCat(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("validating files: %w", err)
 	}
 
-	// 7. Check quiet mode - suppress output only after validation
+	// 8. Check quiet mode - suppress output only after validation
 	if cfg.Quiet {
 		return nil
 	}
 
-	// 8. Stream each file to stdout
+	// 9. Stream each file to stdout
 	for _, normalizedPath := range normalizedPaths {
 		if err := catFile(blobArchive, normalizedPath); err != nil {
 			return err

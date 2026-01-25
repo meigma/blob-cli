@@ -41,6 +41,7 @@ func init() {
 	cpCmd.Flags().BoolP("recursive", "r", true, "copy directories recursively")
 	cpCmd.Flags().Bool("preserve", false, "preserve file permissions and timestamps from archive")
 	cpCmd.Flags().BoolP("force", "f", false, "overwrite existing files")
+	cpCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
 }
 
 // cpFlags holds the parsed command flags.
@@ -48,6 +49,7 @@ type cpFlags struct {
 	recursive bool
 	preserve  bool
 	force     bool
+	skipCache bool
 }
 
 // cpSource represents a parsed source argument (ref:/path).
@@ -107,7 +109,7 @@ func runCp(cmd *cobra.Command, args []string) error {
 	resolvedSources := make([]cpResolvedSource, 0, len(sources))
 
 	for _, src := range sources {
-		rsrc, resolveErr := resolveSource(ctx, cfg, src, archiveCache)
+		rsrc, resolveErr := resolveSource(ctx, cfg, src, archiveCache, flags.skipCache)
 		if resolveErr != nil {
 			return resolveErr
 		}
@@ -148,16 +150,26 @@ func runCp(cmd *cobra.Command, args []string) error {
 }
 
 // resolveSource pulls the archive (if not cached) and detects if the source is a file or directory.
-func resolveSource(ctx context.Context, cfg *internalcfg.Config, src cpSource, cache map[string]*blob.Archive) (cpResolvedSource, error) {
+func resolveSource(ctx context.Context, cfg *internalcfg.Config, src cpSource, cache map[string]*blob.Archive, skipCache bool) (cpResolvedSource, error) {
 	// Get or create archive for this ref
 	blobArchive, ok := cache[src.ref]
 	if !ok {
-		client, clientErr := newClient(cfg)
+		var client *blob.Client
+		var clientErr error
+		if skipCache {
+			client, clientErr = blob.NewClient(clientOptsNoCache(cfg)...)
+		} else {
+			client, clientErr = newClient(cfg)
+		}
 		if clientErr != nil {
 			return cpResolvedSource{}, fmt.Errorf("creating client: %w", clientErr)
 		}
+		var pullOpts []blob.PullOption
+		if skipCache {
+			pullOpts = append(pullOpts, blob.PullWithSkipCache())
+		}
 		var pullErr error
-		blobArchive, pullErr = client.Pull(ctx, src.ref)
+		blobArchive, pullErr = client.Pull(ctx, src.ref, pullOpts...)
 		if pullErr != nil {
 			return cpResolvedSource{}, fmt.Errorf("accessing archive %s: %w", src.ref, pullErr)
 		}
@@ -396,6 +408,11 @@ func parseCpFlags(cmd *cobra.Command) (cpFlags, error) {
 	flags.force, err = cmd.Flags().GetBool("force")
 	if err != nil {
 		return flags, fmt.Errorf("reading force flag: %w", err)
+	}
+
+	flags.skipCache, err = cmd.Flags().GetBool("skip-cache")
+	if err != nil {
+		return flags, fmt.Errorf("reading skip-cache flag: %w", err)
 	}
 
 	return flags, nil

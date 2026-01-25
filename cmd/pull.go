@@ -38,6 +38,7 @@ func init() {
 	pullCmd.Flags().StringArray("policy", nil, "policy file for verification (repeatable)")
 	pullCmd.Flags().String("policy-rego", "", "OPA Rego policy file")
 	pullCmd.Flags().Bool("no-default-policy", false, "skip policies from config file")
+	pullCmd.Flags().Bool("skip-cache", false, "bypass registry caches for this operation")
 }
 
 // pullResult contains the result of a pull operation.
@@ -57,6 +58,7 @@ type pullFlags struct {
 	policyFiles     []string
 	policyRego      string
 	noDefaultPolicy bool
+	skipCache       bool
 }
 
 func runPull(cmd *cobra.Command, args []string) error {
@@ -99,14 +101,26 @@ func runPull(cmd *cobra.Command, args []string) error {
 	for _, p := range policies {
 		policyOpts = append(policyOpts, blob.WithPolicy(p))
 	}
-	client, err := newClient(cfg, policyOpts...)
+
+	var client *blob.Client
+	if flags.skipCache {
+		// Use no-cache client options
+		allOpts := append(clientOptsNoCache(cfg), policyOpts...)
+		client, err = blob.NewClient(allOpts...)
+	} else {
+		client, err = newClient(cfg, policyOpts...)
+	}
 	if err != nil {
 		return fmt.Errorf("creating client: %w", err)
 	}
 
 	// 7. Pull archive (policy verification happens here)
 	ctx := cmd.Context()
-	blobArchive, err := client.Pull(ctx, resolvedRef)
+	var pullOpts []blob.PullOption
+	if flags.skipCache {
+		pullOpts = append(pullOpts, blob.PullWithSkipCache())
+	}
+	blobArchive, err := client.Pull(ctx, resolvedRef, pullOpts...)
 	if err != nil {
 		if errors.Is(err, blob.ErrPolicyViolation) {
 			return fmt.Errorf("verification failed: %w", err)
@@ -172,6 +186,11 @@ func parsePullFlags(cmd *cobra.Command) (pullFlags, error) {
 	flags.noDefaultPolicy, err = cmd.Flags().GetBool("no-default-policy")
 	if err != nil {
 		return flags, fmt.Errorf("reading no-default-policy flag: %w", err)
+	}
+
+	flags.skipCache, err = cmd.Flags().GetBool("skip-cache")
+	if err != nil {
+		return flags, fmt.Errorf("reading skip-cache flag: %w", err)
 	}
 
 	return flags, nil

@@ -133,6 +133,56 @@ func TestValidatePolicies(t *testing.T) {
 	}
 }
 
+func TestValidateCache(t *testing.T) {
+	tests := []struct {
+		name    string
+		cache   CacheConfig
+		wantErr bool
+	}{
+		{
+			name:    "empty config",
+			cache:   CacheConfig{},
+			wantErr: false,
+		},
+		{
+			name:    "valid ref_ttl",
+			cache:   CacheConfig{RefTTL: "5m"},
+			wantErr: false,
+		},
+		{
+			name:    "valid ref_ttl with hours",
+			cache:   CacheConfig{RefTTL: "1h30m"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid ref_ttl",
+			cache:   CacheConfig{RefTTL: "invalid"},
+			wantErr: true,
+		},
+		{
+			name:    "invalid ref_ttl no unit",
+			cache:   CacheConfig{RefTTL: "5"},
+			wantErr: true,
+		},
+		{
+			name:    "valid max_size",
+			cache:   CacheConfig{MaxSize: "5GB"},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateCache(&tt.cache)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestValidate(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -157,6 +207,15 @@ func TestValidate(t *testing.T) {
 			cfg: &Config{
 				Output:      "text",
 				Compression: "gzip",
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid cache ref_ttl",
+			cfg: &Config{
+				Output:      "text",
+				Compression: "zstd",
+				Cache:       CacheConfig{RefTTL: "invalid"},
 			},
 			wantErr: true,
 		},
