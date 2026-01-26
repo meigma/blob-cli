@@ -377,8 +377,8 @@ github.com/mattn/go-localereader v0.0.1 h1:ygSAOl7ZXTx4RdPYinUpg6W99U8jWvWi9Ye2J
 github.com/mattn/go-localereader v0.0.1/go.mod h1:8fBrzywKY7BI3czFoHkuzRoWE9C+EiG4R1k4Cjx5p88=
 github.com/mattn/go-runewidth v0.0.16 h1:E5ScNMtiwvlvB5paMFdw9p4kSQzbXFikJ5SQO6TULQc=
 github.com/mattn/go-runewidth v0.0.16/go.mod h1:Jdepj2loyihRzMpdS35Xk/zdY8IAYHsh153qUoGf23w=
-github.com/meigma/blob v1.1.1 h1:VJejJtlDt+0FyAt+D9NA51K3whBkZabHBAmy87UgbY8=
-github.com/meigma/blob v1.1.1/go.mod h1:/vMKwvjRGVuTzvykLUeWRZ4yHjm02mjp3HrAa7kpLOQ=
+github.com/meigma/blob v1.1.2 h1:dzgGLQh3oV96grdjGaCPO9P3fEVnS8Zd/7RoJGEluzc=
+github.com/meigma/blob v1.1.2/go.mod h1:/vMKwvjRGVuTzvykLUeWRZ4yHjm02mjp3HrAa7kpLOQ=
 github.com/meigma/blob/policy/opa v0.0.0-20260121212824-972ce5f91c94 h1:+f/FSoBWnpjGpV+HvofNBkrROUWwR9EgpB66f0zXJXs=
 github.com/meigma/blob/policy/opa v0.0.0-20260121212824-972ce5f91c94/go.mod h1:ZXF4/Rnbo1joGHYNZ2KRJkH7IHv4slkxFTs+ld9+Z04=
 github.com/meigma/blob/policy/sigstore v0.0.0-20260121212824-972ce5f91c94 h1:tGzZMNZ6w5NOE4gPEYnfCm66PRKyhHI98dpu4BILEeM=
